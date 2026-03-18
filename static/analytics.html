@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Аналитика · Управление закупками</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- Навбар -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="index.html">
+        <i class="fas fa-tshirt"></i> Пока не придумали <span class="text-info">швейное производство</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="index.html"><i class="fas fa-home"></i> Главная</a></li>
+          <li class="nav-item"><a class="nav-link" href="suppliers.html"><i class="fas fa-truck"></i> Поставщики</a></li>
+          <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li> <!-- новый пункт -->
+          <li class="nav-item"><a class="nav-link" href="contracts.html"><i class="fas fa-file-contract"></i> Договоры</a></li>
+          <li class="nav-item"><a class="nav-link" href="warehouse.html"><i class="fas fa-box"></i> Склад</a></li>
+          <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li>
+          <li class="nav-item"><a class="nav-link" href="finance.html"><i class="fas fa-coins"></i> Финансы</a></li>
+          <li class="nav-item"><a class="nav-link" href="analytics.html"><i class="fas fa-chart-line"></i> Аналитика</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin.html"><i class="fas fa-cogs"></i> Админ</a></li>        </ul>
+        <span class="navbar-text">
+          <i class="fas fa-user"></i> Аккаунт
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container my-4">
+    <div class="d-flex align-items-center mb-4">
+      <i class="fas fa-chart-line fa-2x text-primary me-3"></i>
+      <h1>Аналитика и отчётность</h1>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Объём закупок (март)</h5>
+            <p class="display-6" id="purchaseVolume">3.2 млн ₽</p>
+            <p class="text-success">+12% к февралю</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 mb-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Выполнение плана</h5>
+            <p class="display-6" id="planCompletion">92%</p>
+            <div class="progress"><div class="progress-bar" style="width:92%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Динамика цен (бязь)</h5>
+            <canvas id="priceChart" height="150"></canvas>
+            <p class="mt-2">Средняя цена: <span id="avgPrice">185</span> руб/м</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 mb-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Рейтинг поставщиков</h5>
+            <ol id="supplierRating">
+              <li>ООО «Текстиль-С» — 4.8</li>
+              <li>ИП Соколова — 4.5</li>
+              <li>ЗАО «Швейные материалы» — 4.2</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <button class="btn btn-primary"><i class="fas fa-file-pdf"></i> Сформировать отчёт PDF</button>
+      <button class="btn btn-outline-primary"><i class="fas fa-file-excel"></i> Экспорт в Excel</button>
+    </div>
+  </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const API_BASE = ''; // относительные запросы
+
+    async function fetchApi(url, options = {}) {
+    const response = await fetch(API_BASE + url, options);
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Ошибка ${response.status}: ${error}`);
+    }
+    return response.json();
+  }
+  </script>
+  <script>
+  async function loadAnalytics() {
+    try {
+      // Объём закупок за текущий месяц
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const start = `${year}-${month}-01`;
+      const end = `${year}-${month}-${new Date(year, now.getMonth()+1, 0).getDate()}`;
+
+      const volume = await fetchApi(`/analytics/purchase-volume?start_date=${start}&end_date=${end}`);
+      document.getElementById('purchaseVolume').innerHTML = Math.round(volume.total_amount / 1000).toLocaleString() + ' тыс. ₽';
+
+      // Выполнение плана (используем статистику договоров)
+      const stats = await fetchApi(`/analytics/contract-stats?start_date=${start}&end_date=${end}`);
+      // Условно план = 100 договоров, выполнение = stats.contracts_count
+      const planPercent = Math.min(100, Math.round((stats.contracts_count / 10) * 100)); // для демо
+      document.getElementById('planCompletion').textContent = planPercent + '%';
+      document.querySelector('#planCompletion + .progress .progress-bar').style.width = planPercent + '%';
+
+      // Данные для графика цен (средние цены за последние 3 месяца по материалам)
+      // Для простоты используем заглушку, но можно запросить warehouse/operations и сгруппировать
+      // Здесь я оставлю заглушку, но вы можете реализовать отдельный эндпоинт на бэке
+      // Пока просто покажем статический график, как было
+
+      // Рейтинг поставщиков – можно взять accounts-payable и отсортировать по долгу (чем меньше долг, тем лучше)
+      const debts = await fetchApi('/analytics/accounts-payable');
+      // Сортируем по возрастанию долга (лучшие поставщики)
+      debts.sort((a, b) => a.debt - b.debt);
+      const ratingList = document.getElementById('supplierRating');
+      ratingList.innerHTML = '';
+      debts.slice(0, 5).forEach((d, idx) => {
+        const li = document.createElement('li');
+        li.textContent = `${idx+1}. ${d.name} — долг ${Math.round(d.debt).toLocaleString()} ₽`;
+        ratingList.appendChild(li);
+      });
+
+      // График цен (оставим пока статический)
+      new Chart(document.getElementById('priceChart'), {
+        type: 'bar',
+        data: {
+          labels: ['янв', 'фев', 'мар'],
+          datasets: [{
+            label: 'Средняя цена (бязь)',
+            data: [170, 180, 185],
+            backgroundColor: '#1a5d86'
+          }]
+        }
+      });
+    } catch (error) {
+      console.error('Ошибка загрузки аналитики:', error);
+    }
+  }
+
+  loadAnalytics();
+</script>
+</body>
+  <!-- Футер (перед закрывающим body) -->
+<footer class="bg-dark text-light pt-4 pb-2 mt-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-4">
+          <h5>Модули</h5>
+          <ul class="list-unstyled">
+            <li><a href="suppliers.html" class="text-light">Поставщики</a></li>
+            <li><a href="contracts.html" class="text-light">Договоры</a></li>
+            <li><a href="warehouse.html" class="text-light">Склад</a></li>
+            <li><a href="finance.html" class="text-light">Финансы</a></li>
+            <li><a href="analytics.html" class="text-light">Аналитика</a></li>
+            <li><a href="admin.html" class="text-light">Администрирование</a></li>
+          </ul>
+        </div>
+        <div class="col-md-4">
+          <h5>Информация</h5>
+          <ul class="list-unstyled">
+            <li><a href="index.html" class="text-light">О системе</a></li>
+            <li><a href="#" class="text-light">Документация</a></li>
+            <li><a href="#" class="text-light">Поддержка</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="text-center pt-3 border-top border-secondary">
+        <i class="fas fa-copyright"></i> 2026 ООО «Пока не придумали». Система управления закупками.
+      </div>
+    </div>
+  </footer>
+</html>

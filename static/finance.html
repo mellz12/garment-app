@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Финансы · Управление закупками</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <!-- Навбар -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="index.html">
+        <i class="fas fa-tshirt"></i> Пока не придумали <span class="text-info">швейное производство</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="index.html"><i class="fas fa-home"></i> Главная</a></li>
+          <li class="nav-item"><a class="nav-link" href="suppliers.html"><i class="fas fa-truck"></i> Поставщики</a></li>
+          <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li> <!-- новый пункт -->
+          <li class="nav-item"><a class="nav-link" href="contracts.html"><i class="fas fa-file-contract"></i> Договоры</a></li>
+          <li class="nav-item"><a class="nav-link" href="warehouse.html"><i class="fas fa-box"></i> Склад</a></li>
+          <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li>
+          <li class="nav-item"><a class="nav-link" href="finance.html"><i class="fas fa-coins"></i> Финансы</a></li>
+          <li class="nav-item"><a class="nav-link" href="analytics.html"><i class="fas fa-chart-line"></i> Аналитика</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin.html"><i class="fas fa-cogs"></i> Админ</a></li>        </ul>
+        <span class="navbar-text">
+          <i class="fas fa-user"></i> Аккаунт
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container my-4">
+    <div class="d-flex align-items-center mb-4">
+      <i class="fas fa-coins fa-2x text-primary me-3"></i>
+      <h1>Финансы и расчёты</h1>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <div class="card text-white bg-danger">
+          <div class="card-body">
+            <h5 class="card-title">Кредиторская задолженность</h5>
+            <p class="card-text display-6" id="totalDebt">0 ₽</p>
+            <p>Просроченная: <span id="overdueDebt">0 ₽</span></p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card text-white bg-info">
+          <div class="card-body">
+            <h5 class="card-title">Платежи в этом месяце</h5>
+            <p class="card-text display-6" id="monthPayments">0 ₽</p>
+            <p>Оплачено: <span id="paidMonth">0 ₽</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Реестр платежей</h2>
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr><th>Поставщик</th><th>Сумма</th><th>Дата</th><th>Договор</th><th>Статус</th></tr>
+        </thead>
+        <tbody id="paymentsTableBody">
+        </tbody>
+      </table>
+    </div>
+
+    <button class="btn btn-primary" id="newPaymentBtn"><i class="fas fa-file-invoice"></i> Новый платёж</button>
+    <button class="btn btn-outline-primary"><i class="fas fa-file-excel"></i> Реестр платежей</button>
+  </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const API_BASE = ''; // относительные запросы
+
+    async function fetchApi(url, options = {}) {
+    const response = await fetch(API_BASE + url, options);
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Ошибка ${response.status}: ${error}`);
+    }
+    return response.json();
+  }
+  </script>
+  <!-- Модальное окно нового платежа -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Новый платёж</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="paymentForm">
+          <div class="mb-3">
+            <label class="form-label">Договор *</label>
+            <select class="form-select" id="paymentContractId" required>
+              <option value="">Выберите...</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Сумма *</label>
+            <input type="number" step="0.01" class="form-control" id="paymentAmount" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Дата платежа *</label>
+            <input type="date" class="form-control" id="paymentDate" value="{{ 'now'|date('Y-m-d') }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Тип платежа</label>
+            <select class="form-select" id="paymentType">
+              <option value="постоплата">Постоплата</option>
+              <option value="предоплата">Предоплата</option>
+              <option value="отсрочка платежа">Отсрочка платежа</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Примечания</label>
+            <textarea class="form-control" id="paymentNotes"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-primary" id="savePayment">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function loadFinance() {
+    try {
+      // Кредиторская задолженность
+      const debts = await fetchApi('/analytics/accounts-payable');
+      let total = 0;
+      debts.forEach(d => total += d.debt);
+      document.getElementById('totalDebt').textContent = Math.round(total).toLocaleString() + ' ₽';
+
+      // Платежи
+      const payments = await fetchApi('/payments/');
+      const tbody = document.getElementById('paymentsTableBody');
+      tbody.innerHTML = '';
+
+      // Загрузим договоры и поставщиков для отображения
+      const contracts = await fetchApi('/contracts/');
+      const suppliers = await fetchApi('/suppliers/');
+
+      payments.forEach(p => {
+        const contract = contracts.find(c => c.id === p.contract_id);
+        const supplier = contract ? suppliers.find(s => s.id === contract.supplier_id) : null;
+        const supplierName = supplier ? supplier.name : `Поставщик ID ${contract?.supplier_id}`;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${supplierName}</td>
+          <td>${p.amount.toLocaleString()} ₽</td>
+          <td>${p.payment_date}</td>
+          <td>${contract ? contract.contract_number : 'ID ' + p.contract_id}</td>
+          <td><span class="badge bg-success">${p.status}</span></td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      // Сумма платежей за текущий месяц
+      const now = new Date();
+      const yearMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+      const monthTotal = payments
+        .filter(p => p.payment_date.startsWith(yearMonth))
+        .reduce((sum, p) => sum + p.amount, 0);
+      document.getElementById('monthPayments').textContent = Math.round(monthTotal).toLocaleString() + ' ₽';
+    } catch (error) {
+      console.error('Ошибка загрузки финансов:', error);
+    }
+  }
+
+  // Заполнить select договоров
+  async function fillContractSelect() {
+    const select = document.getElementById('paymentContractId');
+    select.innerHTML = '<option value="">Выберите...</option>';
+    const contracts = await fetchApi('/contracts/');
+    contracts.forEach(c => {
+      const option = document.createElement('option');
+      option.value = c.id;
+      option.textContent = `${c.contract_number} (ID ${c.id})`;
+      select.appendChild(option);
+    });
+  }
+
+  document.getElementById('savePayment').addEventListener('click', async () => {
+    const data = {
+      contract_id: parseInt(document.getElementById('paymentContractId').value),
+      amount: parseFloat(document.getElementById('paymentAmount').value),
+      payment_date: document.getElementById('paymentDate').value,
+      payment_type: document.getElementById('paymentType').value,
+      notes: document.getElementById('paymentNotes').value || null
+    };
+    try {
+      await fetchApi('/payments/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+      document.getElementById('paymentForm').reset();
+      loadFinance();
+    } catch (error) {
+      alert('Ошибка: ' + error.message);
+    }
+  });
+
+  document.getElementById('newPaymentBtn').addEventListener('click', async () => {
+    await fillContractSelect();
+    new bootstrap.Modal(document.getElementById('paymentModal')).show();
+  });
+
+  loadFinance();
+</script>
+</body>
+  <!-- Футер (перед закрывающим body) -->
+<footer class="bg-dark text-light pt-4 pb-2 mt-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-4">
+          <h5>Модули</h5>
+          <ul class="list-unstyled">
+            <li><a href="suppliers.html" class="text-light">Поставщики</a></li>
+            <li><a href="contracts.html" class="text-light">Договоры</a></li>
+            <li><a href="warehouse.html" class="text-light">Склад</a></li>
+            <li><a href="finance.html" class="text-light">Финансы</a></li>
+            <li><a href="analytics.html" class="text-light">Аналитика</a></li>
+            <li><a href="admin.html" class="text-light">Администрирование</a></li>
+          </ul>
+        </div>
+        <div class="col-md-4">
+          <h5>Информация</h5>
+          <ul class="list-unstyled">
+            <li><a href="index.html" class="text-light">О системе</a></li>
+            <li><a href="#" class="text-light">Документация</a></li>
+            <li><a href="#" class="text-light">Поддержка</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="text-center pt-3 border-top border-secondary">
+        <i class="fas fa-copyright"></i> 2026 ООО «Пока не придумали». Система управления закупками.
+      </div>
+    </div>
+  </footer>
+</html>

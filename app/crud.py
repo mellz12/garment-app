@@ -1,9 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func
+import logging
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import case, select, update, delete, func
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from app import models, schemas
+from app.models import Material, WarehouseOperation, WarehouseOperationType
 
+logger = logging.getLogger(__name__)
 # ---------- Suppliers (уже есть, оставляем) ----------
 async def get_supplier(db: AsyncSession, supplier_id: int) -> Optional[models.Supplier]:
     result = await db.execute(select(models.Supplier).where(models.Supplier.id == supplier_id))
@@ -243,22 +247,41 @@ async def delete_payment(db: AsyncSession, payment_id: int) -> bool:
 
 # ---------- Analytics ----------
 async def get_material_balances(db: AsyncSession) -> List[dict]:
-    """Возвращает остатки по каждому материалу: material_id, name, balance."""
-    # Вычисляем сумму приходов и расходов
-    stmt = select(
-        models.WarehouseOperation.material_id,
-        models.Material.name,
-        func.sum(
-            func.case(
-                (models.WarehouseOperation.operation_type == "приход", models.WarehouseOperation.quantity),
-                else_=-models.WarehouseOperation.quantity
-            )
-        ).label("balance")
-    ).join(models.Material, models.WarehouseOperation.material_id == models.Material.id
-    ).group_by(models.WarehouseOperation.material_id, models.Material.name)
-    result = await db.execute(stmt)
-    rows = result.all()
-    return [{"material_id": r.material_id, "name": r.name, "balance": float(r.balance) if r.balance else 0} for r in rows]
+    try:
+        # Подзапрос для расчёта остатков
+        subq = select(
+            WarehouseOperation.material_id,
+            func.sum(
+                case(
+                    (WarehouseOperation.operation_type == WarehouseOperationType.INCOME, WarehouseOperation.quantity),
+                    else_=-WarehouseOperation.quantity
+                )
+            ).label("balance")
+        ).group_by(WarehouseOperation.material_id).subquery()
+
+        stmt = select(
+            Material.id,
+            Material.name,
+            func.coalesce(subq.c.balance, 0).label("balance")
+        ).outerjoin(subq, Material.id == subq.c.material_id)
+
+        result = await db.execute(stmt)
+        rows = result.all()
+        return [
+            {
+                "material_id": row.id,
+                "name": row.name,
+                "balance": float(row.balance)
+            }
+            for row in rows
+        ]
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_material_balances: {e}")
+        # Возвращаем пустой список, чтобы клиент не падал
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error in get_material_balances: {e}")
+        return []
 
 async def get_accounts_payable(db: AsyncSession) -> List[dict]:
     """Кредиторская задолженность по поставщикам: supplier_id, name, total_debt."""

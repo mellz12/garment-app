@@ -100,6 +100,14 @@ class ContractItem(ContractItemBase):
     contract_id: int
     model_config = ConfigDict(from_attributes=True)
 
+class ContractItemCreate(BaseModel):
+    material_id: int
+    quantity: Decimal
+    price: Decimal
+
+class ContractCreate(ContractBase):
+    items: Optional[List[ContractItemCreate]] = None
+
 # ---------- WarehouseOperation ----------
 class WarehouseOperationBase(BaseModel):
     operation_type: WarehouseOperationType
