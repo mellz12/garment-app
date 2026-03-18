@@ -106,7 +106,8 @@ class ContractItemCreate(BaseModel):
     price: Decimal
 
 class ContractCreate(ContractBase):
-    items: Optional[List[ContractItemCreate]] = None
+    contract_number: Optional[str] = None
+    items: List[ContractItemCreate] = []
 
 # ---------- WarehouseOperation ----------
 class WarehouseOperationBase(BaseModel):

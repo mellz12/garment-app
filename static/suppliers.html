@@ -11,7 +11,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
       <a class="navbar-brand" href="index.html">
-        <i class="fas fa-tshirt"></i> Пока не придумали <span class="text-info">швейное производство</span>
+        <i class="fas fa-tshirt"></i> Швея <span class="text-info">швейное производство</span>
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
@@ -20,7 +20,6 @@
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item"><a class="nav-link" href="index.html"><i class="fas fa-home"></i> Главная</a></li>
           <li class="nav-item"><a class="nav-link" href="suppliers.html"><i class="fas fa-truck"></i> Поставщики</a></li>
-          <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li> <!-- новый пункт -->
           <li class="nav-item"><a class="nav-link" href="contracts.html"><i class="fas fa-file-contract"></i> Договоры</a></li>
           <li class="nav-item"><a class="nav-link" href="warehouse.html"><i class="fas fa-box"></i> Склад</a></li>
           <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li>
@@ -84,6 +83,8 @@
       throw new Error(`Ошибка ${response.status}: ${error}`);
     }
     return response.json();
+
+    let editingSupplierId = null;
   }
   </script>
   <!-- Модальное окно нового поставщика -->
@@ -139,6 +140,12 @@
 </div>
 
 <script>
+    document.getElementById('supplierModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('supplierForm').reset();
+    editingSupplierId = null;
+    document.querySelector('#supplierModal .modal-title').textContent = 'Новый поставщик';
+    document.getElementById('saveSupplier').textContent = 'Сохранить';
+  });
   // Загрузка поставщиков
   async function loadSuppliers() {
     try {
@@ -170,30 +177,44 @@
 
   // Сохранение нового поставщика
   document.getElementById('saveSupplier').addEventListener('click', async () => {
-    const data = {
-      name: document.getElementById('supplierName').value,
-      inn: document.getElementById('supplierInn').value || null,
-      bank_name: document.getElementById('supplierBank').value || null,
-      bik: document.getElementById('supplierBik').value || null,
-      account_number: document.getElementById('supplierAccount').value || null,
-      director_name: document.getElementById('supplierDirector').value || null,
-      chief_accountant_name: document.getElementById('supplierChief').value || null,
-      contact_info: document.getElementById('supplierContact').value || null
-    };
-    try {
+  const data = {
+    name: document.getElementById('supplierName').value,
+    inn: document.getElementById('supplierInn').value || null,
+    bank_name: document.getElementById('supplierBank').value || null,
+    bik: document.getElementById('supplierBik').value || null,
+    account_number: document.getElementById('supplierAccount').value || null,
+    director_name: document.getElementById('supplierDirector').value || null,
+    chief_accountant_name: document.getElementById('supplierChief').value || null,
+    contact_info: document.getElementById('supplierContact').value || null
+  };
+
+  try {
+    if (editingSupplierId) {
+      // Обновление
+      await fetchApi(`/suppliers/${editingSupplierId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+    } else {
+      // Создание
       await fetchApi('/suppliers/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      // Закрыть модалку и очистить форму
-      bootstrap.Modal.getInstance(document.getElementById('supplierModal')).hide();
-      document.getElementById('supplierForm').reset();
-      loadSuppliers(); // обновить таблицу
-    } catch (error) {
-      alert('Ошибка: ' + error.message);
     }
-  });
+    // Сброс и закрытие
+    bootstrap.Modal.getInstance(document.getElementById('supplierModal')).hide();
+    document.getElementById('supplierForm').reset();
+    editingSupplierId = null;
+    document.querySelector('#supplierModal .modal-title').textContent = 'Новый поставщик';
+    document.getElementById('saveSupplier').textContent = 'Сохранить';
+    loadSuppliers();
+  } catch (error) {
+    alert('Ошибка: ' + error.message);
+  }
+});
 
   // Удаление поставщика
   window.deleteSupplier = async (id) => {
@@ -207,9 +228,27 @@
   };
 
   // Редактирование (пока заглушка)
-  window.editSupplier = (id) => {
-    alert('Редактирование пока не реализовано');
-  };
+  window.editSupplier = async (id) => {
+  try {
+    const supplier = await fetchApi(`/suppliers/${id}`);
+    document.getElementById('supplierName').value = supplier.name;
+    document.getElementById('supplierInn').value = supplier.inn || '';
+    document.getElementById('supplierBank').value = supplier.bank_name || '';
+    document.getElementById('supplierBik').value = supplier.bik || '';
+    document.getElementById('supplierAccount').value = supplier.account_number || '';
+    document.getElementById('supplierDirector').value = supplier.director_name || '';
+    document.getElementById('supplierChief').value = supplier.chief_accountant_name || '';
+    document.getElementById('supplierContact').value = supplier.contact_info || '';
+
+    editingSupplierId = id;
+    // Меняем заголовок модалки и текст кнопки
+    document.querySelector('#supplierModal .modal-title').textContent = 'Редактирование поставщика';
+    document.getElementById('saveSupplier').textContent = 'Обновить';
+    new bootstrap.Modal(document.getElementById('supplierModal')).show();
+  } catch (error) {
+    alert('Ошибка загрузки данных поставщика: ' + error.message);
+  }
+};
 
   // Привязка кнопки "Новый поставщик"
   document.querySelector('.btn-primary i.fa-plus').closest('button').addEventListener('click', () => {

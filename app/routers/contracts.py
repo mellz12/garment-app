@@ -5,6 +5,9 @@ from typing import List, Optional
 from app import crud, schemas
 from app.database import get_db
 
+from datetime import datetime
+import random
+
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
 @router.get("/", response_model=List[schemas.Contract])
@@ -26,14 +29,25 @@ async def read_contract(contract_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/", response_model=schemas.Contract, status_code=201)
 async def create_contract(contract: schemas.ContractCreate, db: AsyncSession = Depends(get_db)):
-    # Проверить существование поставщика
+    # Проверка существования поставщика
     supplier = await crud.get_supplier(db, contract.supplier_id)
     if not supplier:
         raise HTTPException(status_code=400, detail="Supplier not found")
-    # Доп. проверки уникальности номера договора
+
+    # Генерация номера договора, если не указан
+    if not contract.contract_number:
+        # Формат: Д-YYYYMMDD-XXXX (где XXXX - случайное 4-значное число)
+        now = datetime.now()
+        random_part = random.randint(1000, 9999)
+        contract_number = f"Д-{now.strftime('%Y%m%d')}-{random_part}"
+        # Создаём копию модели с обновлённым полем
+        contract = contract.model_copy(update={"contract_number": contract_number})
+
+    # Проверка уникальности номера (если нужно)
     existing = await crud.get_contracts(db)
     if any(c.contract_number == contract.contract_number for c in existing):
         raise HTTPException(status_code=400, detail="Contract number already exists")
+
     return await crud.create_contract(db, contract)
 
 @router.put("/{contract_id}", response_model=schemas.Contract)

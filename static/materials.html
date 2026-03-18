@@ -11,7 +11,7 @@
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
       <a class="navbar-brand" href="index.html">
-        <i class="fas fa-tshirt"></i> Пока не придумали <span class="text-info">швейное производство</span>
+        <i class="fas fa-tshirt"></i> Швея <span class="text-info">швейное производство</span>
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
@@ -20,7 +20,6 @@
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item"><a class="nav-link" href="index.html"><i class="fas fa-home"></i> Главная</a></li>
           <li class="nav-item"><a class="nav-link" href="suppliers.html"><i class="fas fa-truck"></i> Поставщики</a></li>
-          <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li> <!-- новый пункт -->
           <li class="nav-item"><a class="nav-link" href="contracts.html"><i class="fas fa-file-contract"></i> Договоры</a></li>
           <li class="nav-item"><a class="nav-link" href="warehouse.html"><i class="fas fa-box"></i> Склад</a></li>
           <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li>
@@ -117,6 +116,15 @@
       return response.json();
     }
 
+    let editingMaterialId = null; 
+
+    document.getElementById('materialModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('materialForm').reset();
+    editingMaterialId = null;
+    document.querySelector('#materialModal .modal-title').textContent = 'Новый материал';
+    document.getElementById('saveMaterial').textContent = 'Сохранить';
+  });
+
     // Загрузка материалов
     async function loadMaterials() {
       try {
@@ -151,14 +159,26 @@
         unit: document.getElementById('materialUnit').value,
         description: document.getElementById('materialDescription').value || null
       };
+
       try {
-        await fetchApi('/materials/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
+        if (editingMaterialId) {
+          await fetchApi(`/materials/${editingMaterialId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+        } else {
+          await fetchApi('/materials/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+        }
         bootstrap.Modal.getInstance(document.getElementById('materialModal')).hide();
         document.getElementById('materialForm').reset();
+        editingMaterialId = null;
+        document.querySelector('#materialModal .modal-title').textContent = 'Новый материал';
+        document.getElementById('saveMaterial').textContent = 'Сохранить';
         loadMaterials();
       } catch (error) {
         alert('Ошибка: ' + error.message);
@@ -177,8 +197,20 @@
     };
 
     // Редактирование (пока заглушка)
-    window.editMaterial = (id) => {
-      alert('Редактирование пока не реализовано');
+    window.editMaterial = async (id) => {
+      try {
+        const material = await fetchApi(`/materials/${id}`);
+        document.getElementById('materialName').value = material.name;
+        document.getElementById('materialUnit').value = material.unit;
+        document.getElementById('materialDescription').value = material.description || '';
+
+        editingMaterialId = id;
+        document.querySelector('#materialModal .modal-title').textContent = 'Редактирование материала';
+        document.getElementById('saveMaterial').textContent = 'Обновить';
+        new bootstrap.Modal(document.getElementById('materialModal')).show();
+      } catch (error) {
+        alert('Ошибка загрузки данных материала: ' + error.message);
+      }
     };
 
     // Привязка кнопки "Новый материал"
