@@ -25,7 +25,7 @@
           <li class="nav-item"><a class="nav-link" href="warehouse.html"><i class="fas fa-box"></i> Склад</a></li>
           <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li>
           <li class="nav-item"><a class="nav-link" href="finance.html"><i class="fas fa-coins"></i> Финансы</a></li>
-          <li class="nav-item"><a class="nav-link" href="analytics.html"><i class="fas fa-chart-line"></i> Аналитика</a></li>
+          <li class="nav-item"><a class="nav-link active" href="analytics.html"><i class="fas fa-chart-line"></i> Аналитика</a></li>
           <li class="nav-item"><a class="nav-link" href="admin.html"><i class="fas fa-cogs"></i> Админ</a></li>        </ul>
         <span class="navbar-text">
           <i class="fas fa-user"></i> Аккаунт
@@ -94,14 +94,22 @@
   <script>
     const API_BASE = ''; // относительные запросы
 
-    async function fetchApi(url, options = {}) {
+async function fetchApi(url, options = {}) {
     const response = await fetch(API_BASE + url, options);
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Ошибка ${response.status}: ${error}`);
+        const errorText = await response.text();
+        throw new Error(`Ошибка ${response.status}: ${errorText}`);
     }
-    return response.json();
-  }
+    // Если статус 204 или нет контента, возвращаем null
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return null;
+    }
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+        return response.json();
+    }
+    return response.text();
+}
   </script>
   <script>
   async function loadAnalytics() {

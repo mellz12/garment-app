@@ -63,6 +63,10 @@ class SupplierPrice(Base):
     supplier = relationship("Supplier", back_populates="supplier_prices")
     material = relationship("Material", back_populates="supplier_prices")
 
+class ContractType(str, enum.Enum):
+    ONETIME = "одноразовый"
+    LONGTERM = "долгосрочный"
+
 class Contract(Base):
     __tablename__ = "contracts"
 
@@ -79,6 +83,7 @@ class Contract(Base):
     supplier = relationship("Supplier", back_populates="contracts")
     items = relationship("ContractItem", back_populates="contract", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="contract")
+    contract_type = Column(Enum(ContractType), default=ContractType.ONETIME)
 
 class ContractItem(Base):
     __tablename__ = "contract_items"

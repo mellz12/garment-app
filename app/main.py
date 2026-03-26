@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import suppliers, materials, contracts, warehouse, payments, analytics
+from app.routers import suppliers, materials, contracts, warehouse, payments, analytics, auto_order, supplier_prices
 from app.database import engine
 from app.models import Base
 
@@ -24,6 +24,10 @@ app.include_router(contracts.router, tags=["contracts"])
 app.include_router(warehouse.router, tags=["warehouse"])
 app.include_router(payments.router, tags=["payments"])
 app.include_router(analytics.router, tags=["analytics"])
+app.include_router(auto_order.router)
+app.include_router(supplier_prices.router)
+
+
 
 @app.on_event("startup")
 async def startup():

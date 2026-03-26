@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional, List
-from app.models import ContractStatus, PaymentType, WarehouseOperationType
+from app.models import ContractStatus, PaymentType, WarehouseOperationType, ContractType
 
 # ---------- Supplier ----------
 class SupplierBase(BaseModel):
@@ -61,32 +61,7 @@ class SupplierPriceUpdate(BaseModel):
     price: Optional[Decimal] = None
     delivery_time_days: Optional[int] = None
 
-# ---------- Contract ----------
-class ContractBase(BaseModel):
-    supplier_id: int
-    contract_number: str
-    date: date
-    status: ContractStatus = ContractStatus.CREATED
-    total_amount: Optional[Decimal] = None
-    delivery_terms: Optional[str] = None
-    payment_terms: Optional[str] = None
-    notes: Optional[str] = None
-
-class ContractCreate(ContractBase):
-    pass
-
-class ContractUpdate(BaseModel):
-    status: Optional[ContractStatus] = None
-    total_amount: Optional[Decimal] = None
-    delivery_terms: Optional[str] = None
-    payment_terms: Optional[str] = None
-    notes: Optional[str] = None
-
-class Contract(ContractBase):
-    id: int
-    model_config = ConfigDict(from_attributes=True)
-
-# ---------- ContractItem ----------
+# ---------- ContractItem (определяем до Contract, чтобы использовать в ContractCreate) ----------
 class ContractItemBase(BaseModel):
     material_id: int
     quantity: Decimal
@@ -100,14 +75,33 @@ class ContractItem(ContractItemBase):
     contract_id: int
     model_config = ConfigDict(from_attributes=True)
 
-class ContractItemCreate(BaseModel):
-    material_id: int
-    quantity: Decimal
-    price: Decimal
+# ---------- Contract ----------
+class ContractBase(BaseModel):
+    supplier_id: int
+    contract_number: str
+    date: date
+    status: ContractStatus = ContractStatus.CREATED
+    total_amount: Optional[Decimal] = None
+    delivery_terms: Optional[str] = None
+    payment_terms: Optional[str] = None
+    notes: Optional[str] = None
+    contract_type: ContractType = ContractType.ONETIME
 
 class ContractCreate(ContractBase):
     contract_number: Optional[str] = None
     items: List[ContractItemCreate] = []
+
+class ContractUpdate(BaseModel):
+    status: Optional[ContractStatus] = None
+    total_amount: Optional[Decimal] = None
+    delivery_terms: Optional[str] = None
+    payment_terms: Optional[str] = None
+    notes: Optional[str] = None
+    contract_type: Optional[ContractType] = None
+
+class Contract(ContractBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
 
 # ---------- WarehouseOperation ----------
 class WarehouseOperationBase(BaseModel):

@@ -19,7 +19,7 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item"><a class="nav-link" href="index.html"><i class="fas fa-home"></i> Главная</a></li>
-          <li class="nav-item"><a class="nav-link" href="suppliers.html"><i class="fas fa-truck"></i> Поставщики</a></li>
+          <li class="nav-item"><a class="nav-link active" href="suppliers.html"><i class="fas fa-truck"></i> Поставщики</a></li>
           <li class="nav-item"><a class="nav-link" href="contracts.html"><i class="fas fa-file-contract"></i> Договоры</a></li>
           <li class="nav-item"><a class="nav-link" href="warehouse.html"><i class="fas fa-box"></i> Склад</a></li>
           <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li>
@@ -44,7 +44,7 @@
         <input type="text" class="form-control" id="searchInput" placeholder="Поиск по названию, ИНН...">
       </div>
       <div class="col-md-6 text-end">
-        <button class="btn btn-primary"><i class="fas fa-plus"></i> Новый поставщик</button>
+        <button class="btn btn-primary" id="newSupplierBtn"><i class="fas fa-plus"></i> Новый поставщик</button>
       </div>
     </div>
 
@@ -73,23 +73,9 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    const API_BASE = ''; // относительные запросы
-
-    async function fetchApi(url, options = {}) {
-    const response = await fetch(API_BASE + url, options);
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Ошибка ${response.status}: ${error}`);
-    }
-    return response.json();
-
-    let editingSupplierId = null;
-  }
-  </script>
   <!-- Модальное окно нового поставщика -->
 <div class="modal fade" id="supplierModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Новый поставщик</h5>
@@ -97,29 +83,36 @@
       </div>
       <div class="modal-body">
         <form id="supplierForm">
-          <div class="mb-3">
-            <label class="form-label">Наименование *</label>
-            <input type="text" class="form-control" id="supplierName" required>
+          <!-- Основные данные -->
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Наименование *</label>
+              <input type="text" class="form-control" id="supplierName" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">ИНН</label>
+              <input type="text" class="form-control" id="supplierInn">
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">ИНН</label>
-            <input type="text" class="form-control" id="supplierInn">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Банк</label>
+              <input type="text" class="form-control" id="supplierBank">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">БИК</label>
+              <input type="text" class="form-control" id="supplierBik">
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Банк</label>
-            <input type="text" class="form-control" id="supplierBank">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">БИК</label>
-            <input type="text" class="form-control" id="supplierBik">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Расчётный счёт</label>
-            <input type="text" class="form-control" id="supplierAccount">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Директор</label>
-            <input type="text" class="form-control" id="supplierDirector">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Расчётный счёт</label>
+              <input type="text" class="form-control" id="supplierAccount">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Директор</label>
+              <input type="text" class="form-control" id="supplierDirector">
+            </div>
           </div>
           <div class="mb-3">
             <label class="form-label">Главный бухгалтер</label>
@@ -128,6 +121,21 @@
           <div class="mb-3">
             <label class="form-label">Контактная информация</label>
             <textarea class="form-control" id="supplierContact"></textarea>
+          </div>
+
+          <!-- Блок поставляемых материалов -->
+          <hr>
+          <h5>Поставляемые материалы</h5>
+          <div id="pricesContainer">
+            <!-- строки будут добавляться сюда -->
+          </div>
+          <div class="mb-3">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="addMaterialRowBtn">
+              <i class="fas fa-plus"></i> Добавить материал
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-success" id="quickAddMaterialBtn">
+              <i class="fas fa-cube"></i> Быстрый материал
+            </button>
           </div>
         </form>
       </div>
@@ -139,82 +147,261 @@
   </div>
 </div>
 
+<!-- Модальное окно для быстрого создания материала -->
+<div class="modal fade" id="quickMaterialModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Новый материал</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Наименование *</label>
+          <input type="text" class="form-control" id="quickMaterialName" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Единица измерения *</label>
+          <input type="text" class="form-control" id="quickMaterialUnit" placeholder="м, шт, кг" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Описание</label>
+          <textarea class="form-control" id="quickMaterialDescription"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-primary" id="saveQuickMaterial">Создать и добавить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-    document.getElementById('supplierModal').addEventListener('hidden.bs.modal', function () {
-    document.getElementById('supplierForm').reset();
-    editingSupplierId = null;
-    document.querySelector('#supplierModal .modal-title').textContent = 'Новый поставщик';
-    document.getElementById('saveSupplier').textContent = 'Сохранить';
+  function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>]/g, function(m) {
+    if (m === '&') return '&amp;';
+    if (m === '<') return '&lt;';
+    if (m === '>') return '&gt;';
+    return m;
   });
-  // Загрузка поставщиков
+}
+  const API_BASE = '';
+  let editingSupplierId = null;
+
+  async function fetchApi(url, options = {}) {
+    const response = await fetch(API_BASE + url, options);
+    if (response.status === 204) {
+      return null; // для DELETE и других без тела
+    }
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Ошибка ${response.status}: ${error}`);
+    }
+    // Если есть содержимое, парсим JSON
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  // Загрузка всех материалов для селектов
+  async function loadMaterialsList() {
+    try {
+      return await fetchApi('/materials/');
+    } catch (error) {
+      console.error('Ошибка загрузки материалов:', error);
+      return [];
+    }
+  }
+
+  // Функция заполнения выпадающего списка материалов в строке
+  async function fillMaterialSelect(selectElement, selectedId = null) {
+    const materials = await loadMaterialsList();
+    selectElement.innerHTML = '<option value="">Выберите материал</option>';
+    materials.forEach(m => {
+      const option = document.createElement('option');
+      option.value = m.id;
+      option.textContent = m.name;
+      if (selectedId && selectedId == m.id) option.selected = true;
+      selectElement.appendChild(option);
+    });
+  }
+
+  // Добавление строки материала
+  function addMaterialRow(materialId = null, price = '', deliveryDays = '') {
+    const container = document.getElementById('pricesContainer');
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'row mb-2 align-items-end';
+    const rowId = 'priceRow_' + Date.now() + '_' + Math.random();
+    rowDiv.innerHTML = `
+      <div class="col-md-5">
+        <select class="form-select material-select" data-row="${rowId}" required>
+          <option value="">Выберите материал</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <input type="number" step="0.01" class="form-control material-price" placeholder="Цена" value="${price}">
+      </div>
+      <div class="col-md-3">
+        <input type="number" step="1" class="form-control material-days" placeholder="Срок поставки (дней)" value="${deliveryDays}">
+      </div>
+      <div class="col-md-1">
+        <button type="button" class="btn btn-sm btn-danger remove-row"><i class="fas fa-trash"></i></button>
+      </div>
+    `;
+    container.appendChild(rowDiv);
+    const select = rowDiv.querySelector('.material-select');
+    fillMaterialSelect(select, materialId);
+    rowDiv.querySelector('.remove-row').addEventListener('click', () => rowDiv.remove());
+  }
+
+  // Очистка всех строк
+  function clearMaterialRows() {
+    document.getElementById('pricesContainer').innerHTML = '';
+  }
+
+  // Загрузка существующих цен поставщика (для редактирования)
+  async function loadSupplierPrices(supplierId) {
+    try {
+      const prices = await fetchApi(`/supplier-prices/?supplier_id=${supplierId}`);
+      return Array.isArray(prices) ? prices : [];
+    } catch (error) {
+      console.error('Ошибка загрузки цен поставщика:', error);
+      return [];
+    }
+  }
+
+  // --- Загрузка поставщиков для таблицы ---
   async function loadSuppliers() {
     try {
       const suppliers = await fetchApi('/suppliers/');
       document.getElementById('totalSuppliers').textContent = suppliers.length;
       document.getElementById('updateDate').textContent = new Date().toLocaleDateString('ru-RU');
-
       const tbody = document.getElementById('suppliersTableBody');
       tbody.innerHTML = '';
-      suppliers.forEach(s => {
+      for (const s of suppliers) {
+        // загрузим цены для отображения (опционально)
+        const prices = await loadSupplierPrices(s.id);
+        const materialsList = prices.map(p => `[${p.material_id}]`).join(', ') || '—';
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${s.name}</td>
-          <td>${s.inn || ''}</td>
-          <td>${s.contact_info || ''}</td>
-          <td>—</td>
-          <td>—</td>
+          <td>${escapeHtml(s.name)}</td>
+          <td>${escapeHtml(s.inn || '')}</td>
+          <td>${escapeHtml(s.contact_info || '')}</td>
+          <td>${materialsList}</td>
+          <td>${prices.length ? prices[0].price + ' ₽' : '—'}</td>
           <td>
             <i class="fas fa-edit text-warning me-2" onclick="editSupplier(${s.id})"></i>
             <i class="fas fa-trash text-danger" onclick="deleteSupplier(${s.id})"></i>
-          </td>
+           </td>
         `;
         tbody.appendChild(row);
-      });
+      }
     } catch (error) {
       console.error('Ошибка загрузки поставщиков:', error);
     }
   }
 
-  // Сохранение нового поставщика
-  document.getElementById('saveSupplier').addEventListener('click', async () => {
-  const data = {
-    name: document.getElementById('supplierName').value,
-    inn: document.getElementById('supplierInn').value || null,
-    bank_name: document.getElementById('supplierBank').value || null,
-    bik: document.getElementById('supplierBik').value || null,
-    account_number: document.getElementById('supplierAccount').value || null,
-    director_name: document.getElementById('supplierDirector').value || null,
-    chief_accountant_name: document.getElementById('supplierChief').value || null,
-    contact_info: document.getElementById('supplierContact').value || null
+  // Редактирование
+  window.editSupplier = async (id) => {
+    try {
+      const supplier = await fetchApi(`/suppliers/${id}`);
+      document.getElementById('supplierName').value = supplier.name;
+      document.getElementById('supplierInn').value = supplier.inn || '';
+      document.getElementById('supplierBank').value = supplier.bank_name || '';
+      document.getElementById('supplierBik').value = supplier.bik || '';
+      document.getElementById('supplierAccount').value = supplier.account_number || '';
+      document.getElementById('supplierDirector').value = supplier.director_name || '';
+      document.getElementById('supplierChief').value = supplier.chief_accountant_name || '';
+      document.getElementById('supplierContact').value = supplier.contact_info || '';
+
+      const prices = await loadSupplierPrices(id);
+      clearMaterialRows();
+      for (const p of prices) {
+        addMaterialRow(p.material_id, p.price, p.delivery_time_days);
+      }
+
+      editingSupplierId = id;
+      document.querySelector('#supplierModal .modal-title').textContent = 'Редактирование поставщика';
+      document.getElementById('saveSupplier').textContent = 'Обновить';
+      new bootstrap.Modal(document.getElementById('supplierModal')).show();
+    } catch (error) {
+      alert('Ошибка загрузки данных поставщика: ' + error.message);
+    }
   };
 
-  try {
-    if (editingSupplierId) {
-      // Обновление
-      await fetchApi(`/suppliers/${editingSupplierId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-    } else {
-      // Создание
-      await fetchApi('/suppliers/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+  // Сохранение поставщика (создание или обновление)
+  document.getElementById('saveSupplier').addEventListener('click', async () => {
+    const data = {
+      name: document.getElementById('supplierName').value,
+      inn: document.getElementById('supplierInn').value || null,
+      bank_name: document.getElementById('supplierBank').value || null,
+      bik: document.getElementById('supplierBik').value || null,
+      account_number: document.getElementById('supplierAccount').value || null,
+      director_name: document.getElementById('supplierDirector').value || null,
+      chief_accountant_name: document.getElementById('supplierChief').value || null,
+      contact_info: document.getElementById('supplierContact').value || null
+    };
+
+    // Собираем цены
+    const rows = document.querySelectorAll('#pricesContainer .row');
+    const prices = [];
+    for (const row of rows) {
+      const materialSelect = row.querySelector('.material-select');
+      const materialId = materialSelect ? materialSelect.value : '';
+      const price = row.querySelector('.material-price').value;
+      const days = row.querySelector('.material-days').value;
+      if (materialId && price) {
+        prices.push({
+          material_id: parseInt(materialId),
+          price: parseFloat(price),
+          delivery_time_days: days ? parseInt(days) : null
+        });
+      }
     }
-    // Сброс и закрытие
-    bootstrap.Modal.getInstance(document.getElementById('supplierModal')).hide();
-    document.getElementById('supplierForm').reset();
-    editingSupplierId = null;
-    document.querySelector('#supplierModal .modal-title').textContent = 'Новый поставщик';
-    document.getElementById('saveSupplier').textContent = 'Сохранить';
-    loadSuppliers();
-  } catch (error) {
-    alert('Ошибка: ' + error.message);
-  }
-});
+
+    try {
+      let savedSupplier;
+      if (editingSupplierId) {
+        // Обновление поставщика
+        await fetchApi(`/suppliers/${editingSupplierId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        savedSupplier = { id: editingSupplierId };
+      } else {
+        // Создание нового
+        savedSupplier = await fetchApi('/suppliers/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      }
+
+      // Удаляем старые цены
+      await fetchApi(`/supplier-prices/by-supplier/${savedSupplier.id}`, { method: 'DELETE' });
+      // Добавляем новые
+      for (const p of prices) {
+        await fetchApi('/supplier-prices/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...p, supplier_id: savedSupplier.id })
+        });
+      }
+
+      // Закрыть модалку и сбросить
+      bootstrap.Modal.getInstance(document.getElementById('supplierModal')).hide();
+      document.getElementById('supplierForm').reset();
+      clearMaterialRows();
+      editingSupplierId = null;
+      document.querySelector('#supplierModal .modal-title').textContent = 'Новый поставщик';
+      document.getElementById('saveSupplier').textContent = 'Сохранить';
+      loadSuppliers();
+    } catch (error) {
+      alert('Ошибка: ' + error.message);
+    }
+  });
 
   // Удаление поставщика
   window.deleteSupplier = async (id) => {
@@ -227,34 +414,26 @@
     }
   };
 
-  // Редактирование (пока заглушка)
-  window.editSupplier = async (id) => {
-  try {
-    const supplier = await fetchApi(`/suppliers/${id}`);
-    document.getElementById('supplierName').value = supplier.name;
-    document.getElementById('supplierInn').value = supplier.inn || '';
-    document.getElementById('supplierBank').value = supplier.bank_name || '';
-    document.getElementById('supplierBik').value = supplier.bik || '';
-    document.getElementById('supplierAccount').value = supplier.account_number || '';
-    document.getElementById('supplierDirector').value = supplier.director_name || '';
-    document.getElementById('supplierChief').value = supplier.chief_accountant_name || '';
-    document.getElementById('supplierContact').value = supplier.contact_info || '';
-
-    editingSupplierId = id;
-    // Меняем заголовок модалки и текст кнопки
-    document.querySelector('#supplierModal .modal-title').textContent = 'Редактирование поставщика';
-    document.getElementById('saveSupplier').textContent = 'Обновить';
-    new bootstrap.Modal(document.getElementById('supplierModal')).show();
-  } catch (error) {
-    alert('Ошибка загрузки данных поставщика: ' + error.message);
-  }
-};
-
-  // Привязка кнопки "Новый поставщик"
-  document.querySelector('.btn-primary i.fa-plus').closest('button').addEventListener('click', () => {
+  // Кнопка "Новый поставщик"
+  document.getElementById('newSupplierBtn').addEventListener('click', () => {
+    clearMaterialRows();
+    addMaterialRow(); // добавить пустую строку для удобства
     new bootstrap.Modal(document.getElementById('supplierModal')).show();
   });
 
+  // Сброс при закрытии модалки
+  document.getElementById('supplierModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('supplierForm').reset();
+    clearMaterialRows();
+    editingSupplierId = null;
+    document.querySelector('#supplierModal .modal-title').textContent = 'Новый поставщик';
+    document.getElementById('saveSupplier').textContent = 'Сохранить';
+  });
+
+  // Быстрый материал (оставляем как было, но можно убрать, если не нужно)
+  // ... (код быстрого материала можно оставить из предыдущего ответа)
+
+  // Загрузка
   loadSuppliers();
 </script>
 </body>

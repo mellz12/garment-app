@@ -8,7 +8,7 @@
 </head>
 <body>
   <!-- Навбар -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
       <a class="navbar-brand" href="index.html">
         <i class="fas fa-tshirt"></i> Швея <span class="text-info">швейное производство</span>
@@ -20,12 +20,13 @@
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item"><a class="nav-link" href="index.html"><i class="fas fa-home"></i> Главная</a></li>
           <li class="nav-item"><a class="nav-link" href="suppliers.html"><i class="fas fa-truck"></i> Поставщики</a></li>
-          <li class="nav-item"><a class="nav-link" href="contracts.html"><i class="fas fa-file-contract"></i> Договоры</a></li>
+          <li class="nav-item"><a class="nav-link active" href="contracts.html"><i class="fas fa-file-contract"></i> Договоры</a></li>
           <li class="nav-item"><a class="nav-link" href="warehouse.html"><i class="fas fa-box"></i> Склад</a></li>
           <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li>
           <li class="nav-item"><a class="nav-link" href="finance.html"><i class="fas fa-coins"></i> Финансы</a></li>
           <li class="nav-item"><a class="nav-link" href="analytics.html"><i class="fas fa-chart-line"></i> Аналитика</a></li>
-          <li class="nav-item"><a class="nav-link" href="admin.html"><i class="fas fa-cogs"></i> Админ</a></li>        </ul>
+          <li class="nav-item"><a class="nav-link" href="admin.html"><i class="fas fa-cogs"></i> Админ</a></li>
+        </ul>
         <span class="navbar-text">
           <i class="fas fa-user"></i> Аккаунт
         </span>
@@ -39,19 +40,19 @@
       <h1>Договоры и заказы</h1>
     </div>
 
-    <!-- вкладки статусов (можно сделать активные через JS) -->
+    <!-- вкладки статусов -->
     <ul class="nav nav-pills mb-3">
-      <li class="nav-item"><a class="nav-link active" href="#">Все (128)</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">Создан</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">На согласовании</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">Утверждён</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">Подписан</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">Аннулирован</a></li>
+      <li class="nav-item"><a class="nav-link active" href="#" data-status="">Все</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" data-status="создан">Создан</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" data-status="на согласовании">На согласовании</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" data-status="утверждён">Утверждён</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" data-status="подписан">Подписан</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" data-status="аннулирован">Аннулирован</a></li>
     </ul>
 
     <div class="row mb-3">
       <div class="col-md-6">
-        <input type="text" class="form-control" placeholder="Поиск по номеру, поставщику...">
+        <input type="text" class="form-control" id="searchInput" placeholder="Поиск по номеру, поставщику...">
       </div>
       <div class="col-md-6 text-end">
         <button class="btn btn-primary" id="newContractBtn"><i class="fas fa-plus"></i> Новый договор</button>
@@ -66,246 +67,461 @@
             <th>Поставщик</th>
             <th>Сумма</th>
             <th>Дата</th>
-            <th>Срок поставки</th>
+            <th>Тип</th>
             <th>Статус</th>
             <th></th>
-          </tr>
+           </tr>
         </thead>
-        <tbody id="contractsTableBody">
-        </tbody>
+        <tbody id="contractsTableBody"></tbody>
       </table>
     </div>
 
     <div class="card mt-4">
       <div class="card-body">
         <h5 class="card-title">Ближайшие сроки поставки</h5>
-        <div id="deliveryWarnings"></div>
+        <div id="deliveryWarnings">—</div>
       </div>
     </div>
   </main>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    const API_BASE = ''; // относительные запросы
 
-    async function fetchApi(url, options = {}) {
-    const response = await fetch(API_BASE + url, options);
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Ошибка ${response.status}: ${error}`);
-    }
-    return response.json();
-  }
-  </script>
-  <!-- Модальное окно нового договора -->
-<div class="modal fade" id="contractModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Новый договор</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="contractForm">
-          <div class="mb-3">
-            <label class="form-label">Поставщик *</label>
-            <select class="form-select" id="contractSupplierId" required>
-              <option value="">Выберите...</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Дата</label>
-            <input type="date" class="form-control" id="contractDate">
-          </div>
-          <div class="mb-3">
-          <label class="form-label">Статус</label>
-          <select class="form-select" id="contractStatus">
-            <option value="создан">Создан</option>
-            <option value="на согласовании">На согласовании</option>
-            <option value="утверждён">Утверждён</option>
-            <option value="подписан">Подписан</option>
-            <option value="аннулирован">Аннулирован</option>
-          </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Общая сумма</label>
-            <input type="number" step="0.01" class="form-control" id="contractTotal">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Условия поставки</label>
-            <textarea class="form-control" id="contractDeliveryTerms"></textarea>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Условия оплаты</label>
-            <textarea class="form-control" id="contractPaymentTerms"></textarea>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Примечания</label>
-            <textarea class="form-control" id="contractNotes"></textarea>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-        <button type="button" class="btn btn-primary" id="saveContract">Сохранить</button>
+  <!-- Модальное окно договора -->
+  <div class="modal fade" id="contractModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Новый договор</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="contractForm">
+            <div class="mb-3">
+              <label class="form-label">Поставщик *</label>
+              <select class="form-select" id="contractSupplierId" required>
+                <option value="">Выберите...</option>
+              </select>
+            </div>
+            <hr>
+            <h5>Позиции договора</h5>
+            <div id="contractItemsContainer"></div>
+            <button type="button" class="btn btn-sm btn-outline-primary mb-3" id="addContractItemBtn">
+              <i class="fas fa-plus"></i> Добавить материал
+            </button>
+            <hr>
+            <div class="mb-3">
+              <label class="form-label">Дата</label>
+              <input type="date" class="form-control" id="contractDate">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Тип договора</label>
+              <select class="form-select" id="contractType">
+                <option value="одноразовый">Одноразовый</option>
+                <option value="долгосрочный">Долгосрочный</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Статус</label>
+              <select class="form-select" id="contractStatus">
+                <option value="создан">Создан</option>
+                <option value="на согласовании">На согласовании</option>
+                <option value="утверждён">Утверждён</option>
+                <option value="подписан">Подписан</option>
+                <option value="аннулирован">Аннулирован</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Общая сумма</label>
+              <input type="number" step="0.01" class="form-control" id="contractTotal">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Условия поставки</label>
+              <textarea class="form-control" id="contractDeliveryTerms"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Условия оплаты</label>
+              <textarea class="form-control" id="contractPaymentTerms"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Примечания</label>
+              <textarea class="form-control" id="contractNotes"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" id="saveContract">Сохранить</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<script>
-  let editingContractId = null;
-  let suppliers = []; // для сопоставления
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const API_BASE = '';
+    let editingContractId = null;
+    let suppliers = [];
+    let contractsData = [];
+    let currentSupplierMaterials = [];
 
-  async function loadContracts() {
-    try {
-      // Загружаем поставщиков для отображения названий
+    // --- Вспомогательные функции ---
+    async function fetchApi(url, options = {}) {
+      const response = await fetch(API_BASE + url, options);
+      if (response.status === 204) return null;
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Ошибка ${response.status}: ${error}`);
+      }
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      }
+      return response.text();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      });
+    }
+
+    // --- Загрузка материалов для выбранного поставщика ---
+    async function loadSupplierMaterials(supplierId) {
+      if (!supplierId) {
+        currentSupplierMaterials = [];
+        return;
+      }
+      try {
+        const prices = await fetchApi(`/supplier-prices/?supplier_id=${supplierId}`);
+        const materials = await fetchApi('/materials/');
+        const materialMap = {};
+        materials.forEach(m => materialMap[m.id] = m.name);
+        currentSupplierMaterials = (prices || []).map(p => ({
+          id: p.material_id,
+          name: materialMap[p.material_id] || `Материал ${p.material_id}`,
+          price: p.price,
+          delivery_days: p.delivery_time_days
+        }));
+      } catch (error) {
+        console.error('Ошибка загрузки материалов поставщика:', error);
+        currentSupplierMaterials = [];
+      }
+    }
+
+    // --- Добавление строки позиции договора ---
+    function addContractItemRow(materialId = null, quantity = '', price = '') {
+      const container = document.getElementById('contractItemsContainer');
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'row mb-2 align-items-end';
+
+      const options = currentSupplierMaterials.map(m => 
+        `<option value="${m.id}" data-price="${m.price}" ${materialId == m.id ? 'selected' : ''}>${escapeHtml(m.name)} (${m.price} руб.)</option>`
+      ).join('');
+
+      rowDiv.innerHTML = `
+        <div class="col-md-5">
+          <select class="form-select item-material" required>
+            <option value="">Выберите материал</option>
+            ${options}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input type="number" step="0.01" class="form-control item-quantity" placeholder="Количество" value="${quantity}">
+        </div>
+        <div class="col-md-3">
+          <input type="number" step="0.01" class="form-control item-price" placeholder="Цена" value="${price}">
+        </div>
+        <div class="col-md-1">
+          <button type="button" class="btn btn-sm btn-danger remove-item"><i class="fas fa-trash"></i></button>
+        </div>
+      `;
+      container.appendChild(rowDiv);
+
+      const materialSelect = rowDiv.querySelector('.item-material');
+      const priceInput = rowDiv.querySelector('.item-price');
+      materialSelect.addEventListener('change', () => {
+        const selectedOption = materialSelect.options[materialSelect.selectedIndex];
+        if (selectedOption && selectedOption.dataset.price) {
+          priceInput.value = selectedOption.dataset.price;
+        } else {
+          priceInput.value = '';
+        }
+      });
+      if (materialId) {
+        materialSelect.value = materialId;
+        materialSelect.dispatchEvent(new Event('change'));
+      }
+
+      rowDiv.querySelector('.remove-item').addEventListener('click', () => rowDiv.remove());
+    }
+
+    function clearContractItems() {
+      document.getElementById('contractItemsContainer').innerHTML = '';
+    }
+
+    // --- Заполнение select поставщиков ---
+    async function fillSupplierSelect() {
+      const select = document.getElementById('contractSupplierId');
+      select.innerHTML = '<option value="">Выберите...</option>';
       suppliers = await fetchApi('/suppliers/');
-      const contracts = await fetchApi('/contracts/');
+      (suppliers || []).forEach(s => {
+        const option = document.createElement('option');
+        option.value = s.id;
+        option.textContent = s.name;
+        select.appendChild(option);
+      });
+    }
+
+    // --- Обновление доступных материалов при смене поставщика ---
+    document.getElementById('contractSupplierId').addEventListener('change', async (e) => {
+      const supplierId = e.target.value;
+      await loadSupplierMaterials(supplierId);
+      // Обновляем все существующие строки
+      const rows = document.querySelectorAll('#contractItemsContainer .row');
+      for (const row of rows) {
+        const select = row.querySelector('.item-material');
+        const currentVal = select.value;
+        const options = currentSupplierMaterials.map(m => 
+          `<option value="${m.id}" data-price="${m.price}" ${currentVal == m.id ? 'selected' : ''}>${escapeHtml(m.name)} (${m.price} руб.)</option>`
+        ).join('');
+        select.innerHTML = '<option value="">Выберите материал</option>' + options;
+        if (currentVal && currentSupplierMaterials.find(m => m.id == currentVal)) {
+          select.value = currentVal;
+          const priceInput = row.querySelector('.item-price');
+          const selected = currentSupplierMaterials.find(m => m.id == currentVal);
+          if (selected) priceInput.value = selected.price;
+        }
+      }
+    });
+
+    // --- Загрузка и отображение договоров ---
+    async function loadContracts() {
+      try {
+        contractsData = await fetchApi('/contracts/') || [];
+        applyFilters();
+      } catch (error) {
+        console.error('Ошибка загрузки договоров:', error);
+      }
+    }
+
+    function applyFilters() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const activeStatus = document.querySelector('.nav-pills .nav-link.active').getAttribute('data-status');
+      let filtered = contractsData;
+      if (activeStatus) {
+        filtered = filtered.filter(c => c.status === activeStatus);
+      }
+      if (searchTerm) {
+        filtered = filtered.filter(c => 
+          c.contract_number.toLowerCase().includes(searchTerm) ||
+          (suppliers.find(s => s.id === c.supplier_id)?.name || '').toLowerCase().includes(searchTerm)
+        );
+      }
+      renderContractsTable(filtered);
+    }
+
+    function renderContractsTable(contracts) {
       const tbody = document.getElementById('contractsTableBody');
       tbody.innerHTML = '';
-
       contracts.forEach(c => {
         const supplier = suppliers.find(s => s.id === c.supplier_id);
         const supplierName = supplier ? supplier.name : `ID ${c.supplier_id}`;
-
         const statusClass = {
           'создан': 'bg-secondary',
+          'на согласовании': 'bg-warning text-dark',
           'утверждён': 'bg-success',
           'подписан': 'bg-primary',
-          'аннулирован': 'bg-danger',
-          'на согласовании': 'bg-warning text-dark'
-        }[c.status?.toLowerCase()] || 'bg-light';
-
+          'аннулирован': 'bg-danger'
+        }[c.status] || 'bg-light';
+        const contractType = c.contract_type || 'одноразовый';
+        const typeBadgeClass = contractType === 'долгосрочный' ? 'bg-info' : 'bg-secondary';
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td><strong>${c.contract_number}</strong></td>
-          <td>${supplierName}</td>
-          <td>${c.total_amount?.toLocaleString() || '0'} ₽</td>
-          <td>${c.date}</td>
-          <td>—</td>
-          <td><span class="badge ${statusClass}">${c.status}</span></td>
-          <td>
+          <td><strong>${escapeHtml(c.contract_number)}</strong>${'</td>'}
+          <td>${escapeHtml(supplierName)}${'</td>'}
+          <td>${c.total_amount?.toLocaleString() || '0'} ₽${'</td>'}
+          <td>${c.date}${'</td>'}
+          <td><span class="badge ${typeBadgeClass}">${contractType === 'долгосрочный' ? 'Долгосрочный' : 'Одноразовый'}</span>${'</td>'}
+          <td><span class="badge ${statusClass}">${c.status}</span>${'</td>'}
+          <td class="action-icons">
             <i class="fas fa-eye text-info me-2" onclick="viewContract(${c.id})"></i>
-            <i class="fas fa-edit text-warning" onclick="editContract(${c.id})"></i>
-              <i class="fas fa-trash text-danger" onclick="deleteContract(${c.id})"></i>
-          </td>
+            <i class="fas fa-edit text-warning me-2" onclick="editContract(${c.id})"></i>
+            <i class="fas fa-trash text-danger" onclick="deleteContract(${c.id})"></i>
+          ${'</td>'}
         `;
         tbody.appendChild(row);
       });
-    } catch (error) {
-      console.error('Ошибка загрузки договоров:', error);
     }
-  }
 
-  // Заполнить select поставщиков в модалке
-  async function fillSupplierSelect() {
-    const select = document.getElementById('contractSupplierId');
-    select.innerHTML = '<option value="">Выберите...</option>';
-    const suppliers = await fetchApi('/suppliers/');
-    suppliers.forEach(s => {
-      const option = document.createElement('option');
-      option.value = s.id;
-      option.textContent = s.name;
-      select.appendChild(option);
-    });
-  }
-
-  window.viewContract = async (id) => {
-    try {
-      const contract = await fetchApi(`/contracts/${id}`);
-      alert(JSON.stringify(contract, null, 2));
-    } catch (error) {
-      alert('Ошибка загрузки: ' + error.message);
-    }
-  };
-
-  window.editContract = async (id) => {
-    try {
-      const contract = await fetchApi(`/contracts/${id}`);
-      // Заполняем поля
-      // Поставщик: нужно выбрать в select пункт с соответствующим ID
-      document.getElementById('contractSupplierId').value = contract.supplier_id;
-      document.getElementById('contractDate').value = contract.date;
-      document.getElementById('contractTotal').value = contract.total_amount || '';
-      document.getElementById('contractDeliveryTerms').value = contract.delivery_terms || '';
-      document.getElementById('contractPaymentTerms').value = contract.payment_terms || '';
-      document.getElementById('contractNotes').value = contract.notes || '';
-      document.getElementById('contractStatus').value = contract.status;
-
-      editingContractId = id;
-      document.querySelector('#contractModal .modal-title').textContent = 'Редактирование договора';
-      document.getElementById('saveContract').textContent = 'Обновить';
-      new bootstrap.Modal(document.getElementById('contractModal')).show();
-    } catch (error) {
-      alert('Ошибка загрузки данных договора: ' + error.message);
-    }
-  };
-
-  document.getElementById('saveContract').addEventListener('click', async () => {
-    const data = {
-      supplier_id: parseInt(document.getElementById('contractSupplierId').value),
-      date: document.getElementById('contractDate').value,
-      total_amount: document.getElementById('contractTotal').value ? parseFloat(document.getElementById('contractTotal').value) : null,
-      delivery_terms: document.getElementById('contractDeliveryTerms').value || null,
-      payment_terms: document.getElementById('contractPaymentTerms').value || null,
-      notes: document.getElementById('contractNotes').value || null,
-      status: document.getElementById('contractStatus').value,
-      items: [] // позиции не реализованы
+    // --- Просмотр ---
+    window.viewContract = async (id) => {
+      try {
+        const contract = await fetchApi(`/contracts/${id}`);
+        alert(JSON.stringify(contract, null, 2));
+      } catch (error) {
+        alert('Ошибка загрузки: ' + error.message);
+      }
     };
 
-    try {
-      if (editingContractId) {
-        await fetchApi(`/contracts/${editingContractId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-      } else {
-        await fetchApi('/contracts/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
+    // --- Редактирование ---
+    window.editContract = async (id) => {
+      try {
+        const contract = await fetchApi(`/contracts/${id}`);
+        document.getElementById('contractSupplierId').value = contract.supplier_id;
+        document.getElementById('contractDate').value = contract.date;
+        document.getElementById('contractTotal').value = contract.total_amount || '';
+        document.getElementById('contractDeliveryTerms').value = contract.delivery_terms || '';
+        document.getElementById('contractPaymentTerms').value = contract.payment_terms || '';
+        document.getElementById('contractNotes').value = contract.notes || '';
+        document.getElementById('contractStatus').value = contract.status;
+        document.getElementById('contractType').value = contract.contract_type || 'одноразовый';
+        // Загружаем материалы поставщика
+        await loadSupplierMaterials(contract.supplier_id);
+        clearContractItems();
+        if (contract.items && contract.items.length) {
+          for (const item of contract.items) {
+            addContractItemRow(item.material_id, item.quantity, item.price);
+          }
+        } else {
+          addContractItemRow();
+        }
+        editingContractId = id;
+        document.querySelector('#contractModal .modal-title').textContent = 'Редактирование договора';
+        document.getElementById('saveContract').textContent = 'Обновить';
+        new bootstrap.Modal(document.getElementById('contractModal')).show();
+      } catch (error) {
+        alert('Ошибка загрузки данных договора: ' + error.message);
       }
-      bootstrap.Modal.getInstance(document.getElementById('contractModal')).hide();
-      document.getElementById('contractForm').reset();
+    };
+
+    // --- Сохранение (создание/обновление) ---
+    document.getElementById('saveContract').addEventListener('click', async () => {
+      const supplierId = document.getElementById('contractSupplierId').value;
+      if (!supplierId) {
+        alert('Выберите поставщика');
+        return;
+      }
+      // Собираем позиции
+      const items = [];
+      const rows = document.querySelectorAll('#contractItemsContainer .row');
+      for (const row of rows) {
+        const materialId = row.querySelector('.item-material').value;
+        const quantity = row.querySelector('.item-quantity').value;
+        const price = row.querySelector('.item-price').value;
+        if (materialId && quantity && price) {
+          items.push({
+            material_id: parseInt(materialId),
+            quantity: parseFloat(quantity),
+            price: parseFloat(price)
+          });
+        }
+      }
+      if (items.length === 0) {
+        alert('Добавьте хотя бы одну позицию');
+        return;
+      }
+      const data = {
+        supplier_id: parseInt(supplierId),
+        date: document.getElementById('contractDate').value,
+        total_amount: document.getElementById('contractTotal').value ? parseFloat(document.getElementById('contractTotal').value) : null,
+        delivery_terms: document.getElementById('contractDeliveryTerms').value || null,
+        payment_terms: document.getElementById('contractPaymentTerms').value || null,
+        notes: document.getElementById('contractNotes').value || null,
+        status: document.getElementById('contractStatus').value,
+        contract_type: document.getElementById('contractType').value,
+        items: items
+      };
+      try {
+        if (editingContractId) {
+          await fetchApi(`/contracts/${editingContractId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+        } else {
+          await fetchApi('/contracts/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+        }
+        bootstrap.Modal.getInstance(document.getElementById('contractModal')).hide();
+        document.getElementById('contractForm').reset();
+        clearContractItems();
+        editingContractId = null;
+        document.querySelector('#contractModal .modal-title').textContent = 'Новый договор';
+        document.getElementById('saveContract').textContent = 'Сохранить';
+        await loadContracts(); // обновить список
+      } catch (error) {
+        alert('Ошибка: ' + error.message);
+      }
+    });
+
+    // --- Кнопка "Новый договор" ---
+    document.getElementById('newContractBtn').addEventListener('click', async () => {
+      await fillSupplierSelect();
+      document.getElementById('contractDate').valueAsDate = new Date();
+      document.getElementById('contractType').value = 'одноразовый';
+      document.getElementById('contractStatus').value = 'создан';
+      clearContractItems();
+      addContractItemRow(); // пустая строка
       editingContractId = null;
       document.querySelector('#contractModal .modal-title').textContent = 'Новый договор';
       document.getElementById('saveContract').textContent = 'Сохранить';
-      loadContracts();
-    } catch (error) {
-      alert('Ошибка: ' + error.message);
-    }
-  });
-  document.getElementById('newContractBtn').addEventListener('click', async () => {
-    await fillSupplierSelect();
-    // Устанавливаем сегодняшнюю дату
-    document.getElementById('contractDate').valueAsDate = new Date();
-    new bootstrap.Modal(document.getElementById('contractModal')).show();
-});
+      new bootstrap.Modal(document.getElementById('contractModal')).show();
+    });
 
-  document.getElementById('contractModal').addEventListener('hidden.bs.modal', function () {
-    document.getElementById('contractForm').reset();
-    editingContractId = null;
-    document.querySelector('#contractModal .modal-title').textContent = 'Новый договор';
-    document.getElementById('saveContract').textContent = 'Сохранить';
-  });
+    // --- Очистка при закрытии модалки ---
+    document.getElementById('contractModal').addEventListener('hidden.bs.modal', function () {
+      document.getElementById('contractForm').reset();
+      clearContractItems();
+      editingContractId = null;
+      document.querySelector('#contractModal .modal-title').textContent = 'Новый договор';
+      document.getElementById('saveContract').textContent = 'Сохранить';
+    });
 
-  window.deleteContract = async (id) => {
-    if (!confirm('Удалить договор?')) return;
+    // --- Удаление договора ---
+    window.deleteContract = async (id) => {
+      if (!confirm('Удалить договор?')) return;
       try {
         await fetchApi(`/contracts/${id}`, { method: 'DELETE' });
-        loadContracts();
+        await loadContracts();
       } catch (error) {
         alert('Ошибка: ' + error.message);
       }
     };
 
-  loadContracts();
-</script>
-</body>
-    <!-- Футер (перед закрывающим body) -->
-    <footer class="bg-dark text-light pt-4 pb-2 mt-5">
+    // --- Кнопка добавления строки материала в модалке ---
+    document.getElementById('addContractItemBtn').addEventListener('click', () => {
+      if (!document.getElementById('contractSupplierId').value) {
+        alert('Сначала выберите поставщика');
+        return;
+      }
+      addContractItemRow();
+    });
+
+    // --- Фильтрация по вкладкам статусов ---
+    document.querySelectorAll('.nav-pills .nav-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelectorAll('.nav-pills .nav-link').forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        applyFilters();
+      });
+    });
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+    // --- Инициализация ---
+    (async function init() {
+      await fillSupplierSelect();
+      await loadContracts();
+    })();
+  </script>
+
+  <!-- Футер -->
+  <footer class="bg-dark text-light pt-4 pb-2 mt-5">
     <div class="container">
       <div class="row">
         <div class="col-md-4">
@@ -333,4 +549,5 @@
       </div>
     </div>
   </footer>
+</body>
 </html>

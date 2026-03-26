@@ -5,10 +5,20 @@
   <title>Склад · Управление закупками</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    .progress { height: 10px; margin: 8px 0; }
+    .badge-very-low { background-color: #dc3545; }
+    .badge-low { background-color: #fd7e14; }
+    .badge-normal { background-color: #28a745; }
+    .badge-high { background-color: #17a2b8; }
+    .table-material tbody tr:hover { background-color: #f8f9fa; cursor: pointer; }
+    .filter-panel { background-color: #f1f3f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    .action-icons i { margin: 0 4px; cursor: pointer; }
+  </style>
 </head>
 <body>
   <!-- Навбар -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
       <a class="navbar-brand" href="index.html">
         <i class="fas fa-tshirt"></i> Швея <span class="text-info">швейное производство</span>
@@ -21,11 +31,12 @@
           <li class="nav-item"><a class="nav-link" href="index.html"><i class="fas fa-home"></i> Главная</a></li>
           <li class="nav-item"><a class="nav-link" href="suppliers.html"><i class="fas fa-truck"></i> Поставщики</a></li>
           <li class="nav-item"><a class="nav-link" href="contracts.html"><i class="fas fa-file-contract"></i> Договоры</a></li>
-          <li class="nav-item"><a class="nav-link" href="warehouse.html"><i class="fas fa-box"></i> Склад</a></li>
+          <li class="nav-item"><a class="nav-link active" href="warehouse.html"><i class="fas fa-box"></i> Склад</a></li>
           <li class="nav-item"><a class="nav-link" href="materials.html"><i class="fas fa-cube"></i> Материалы</a></li>
           <li class="nav-item"><a class="nav-link" href="finance.html"><i class="fas fa-coins"></i> Финансы</a></li>
           <li class="nav-item"><a class="nav-link" href="analytics.html"><i class="fas fa-chart-line"></i> Аналитика</a></li>
-          <li class="nav-item"><a class="nav-link" href="admin.html"><i class="fas fa-cogs"></i> Админ</a></li>        </ul>
+          <li class="nav-item"><a class="nav-link" href="admin.html"><i class="fas fa-cogs"></i> Админ</a></li>
+        </ul>
         <span class="navbar-text">
           <i class="fas fa-user"></i> Аккаунт
         </span>
@@ -34,274 +45,578 @@
   </nav>
 
   <main class="container my-4">
-    <div class="d-flex align-items-center mb-4">
-      <i class="fas fa-box fa-2x text-primary me-3"></i>
-      <h1>Складской учёт</h1>
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <div class="d-flex align-items-center">
+        <i class="fas fa-box fa-2x text-primary me-3"></i>
+        <h1 class="mb-0">Складской учёт</h1>
+      </div>
+      <div>
+        <button class="btn btn-primary me-2" id="incomeBtn"><i class="fas fa-dolly"></i> Оприходовать</button>
+        <button class="btn btn-outline-primary me-2" id="expenseBtn"><i class="fas fa-arrow-right"></i> Списать</button>
+        <button class="btn btn-warning" id="autoOrderBtn"><i class="fas fa-magic"></i> Автозаказ при низких остатках</button>
+      </div>
     </div>
 
-    <div class="mb-3">
-      <button class="btn btn-primary" id="incomeBtn"><i class="fas fa-dolly"></i> Оприходовать</button>
-      <button class="btn btn-outline-primary" id="expenseBtn"><i class="fas fa-arrow-right"></i> Переместить</button>
-      <button class="btn btn-outline-primary"><i class="fas fa-file-pdf"></i> Акт приёмки</button>
+    <!-- Панель фильтрации и поиска -->
+    <div class="filter-panel">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" class="form-control" id="searchInput" placeholder="Поиск по названию материала...">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <select class="form-select" id="statusFilter">
+            <option value="all">Все остатки</option>
+            <option value="very_low">Очень мало (&lt;10)</option>
+            <option value="low">Мало (10–49)</option>
+            <option value="normal">Нормально (50–199)</option>
+            <option value="high">Много (≥200)</option>
+          </select>
+        </div>
+        <div class="col-md-2 text-md-end">
+          <button class="btn btn-outline-secondary" id="resetFiltersBtn"><i class="fas fa-undo-alt"></i> Сбросить</button>
+        </div>
+      </div>
     </div>
 
-    <h2>Текущие остатки</h2>
-    <div class="row row-cols-1 row-cols-md-3 g-4" id="balancesCards">
-      <!-- динамические карточки -->
+    <!-- Таблица остатков -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Текущие остатки материалов</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-material mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Наименование</th>
+                <th>Ед. изм.</th>
+                <th>Остаток (ед.)</th>
+                <th>Прогресс запаса</th>
+                <th>Состояние</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="balancesTableBody">
+              <tr><td colspan="6" class="text-center">Загрузка...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <h2 class="mt-5">Последние движения</h2>
+    <!-- Блок последних операций -->
+    <h2 class="mt-5"><i class="fas fa-history"></i> Последние движения</h2>
     <div class="table-responsive">
-      <table class="table table-sm">
+      <table class="table table-sm table-striped">
         <thead>
           <tr><th>Дата</th><th>Тип</th><th>Материал</th><th>Количество</th><th>Документ</th><th>Действия</th></tr>
         </thead>
-        <tbody id="operationsTableBody">
-        </tbody>
+        <tbody id="operationsTableBody"></tbody>
       </table>
     </div>
   </main>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Модальное окно новой складской операции -->
-<div class="modal fade" id="warehouseModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Новая операция</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="warehouseForm">
-          <div class="mb-3">
-            <label class="form-label">Тип операции *</label>
-            <select class="form-select" id="opType" required>
-              <option value="приход">Приход</option>
-              <option value="расход">Расход</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Материал *</label>
-            <select class="form-select" id="opMaterialId" required>
-              <option value="">Выберите...</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Количество *</label>
-            <input type="number" step="0.01" class="form-control" id="opQuantity" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Цена</label>
-            <input type="number" step="0.01" class="form-control" id="opPrice">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Договор</label>
-            <select class="form-select" id="opContractId">
-              <option value="">Не выбран</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Поставщик</label>
-            <select class="form-select" id="opSupplierId">
-              <option value="">Не выбран</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Примечания</label>
-            <textarea class="form-control" id="opNotes"></textarea>
-          </div>
-          <input type="hidden" id="opDocument" value="">
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-        <button type="button" class="btn btn-primary" id="saveWarehouseOp">Сохранить</button>
+
+  <!-- Модальное окно для складской операции (остаётся) -->
+  <div class="modal fade" id="warehouseModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Новая операция</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="warehouseForm">
+            <div class="mb-3">
+              <label class="form-label">Тип операции *</label>
+              <select class="form-select" id="opType" required>
+                <option value="приход">Приход</option>
+                <option value="расход">Расход</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Материал *</label>
+              <select class="form-select" id="opMaterialId" required>
+                <option value="">Выберите...</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Количество *</label>
+              <input type="number" step="0.01" class="form-control" id="opQuantity" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Цена</label>
+              <input type="number" step="0.01" class="form-control" id="opPrice">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Договор</label>
+              <select class="form-select" id="opContractId">
+                <option value="">Не выбран</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Поставщик</label>
+              <select class="form-select" id="opSupplierId">
+                <option value="">Не выбран</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Примечания</label>
+              <textarea class="form-control" id="opNotes"></textarea>
+            </div>
+            <input type="hidden" id="opDocument" value="">
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" id="saveWarehouseOp">Сохранить</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
-<script>
-  const API_BASE = ''; // относительные запросы
-  let materialsMap = {}; // словарь для хранения названий материалов
 
-  async function fetchApi(url, options = {}) {
-    const response = await fetch(API_BASE + url, options);
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Ошибка ${response.status}: ${error}`);
-    }
-    return response.json();
-  }
-
-  // Загрузка списка материалов для преобразования ID → название
-  async function loadMaterialsMap() {
-    try {
-      const materials = await fetchApi('/materials/');
-      materials.forEach(m => materialsMap[m.id] = m.name);
-    } catch (error) {
-      console.error('Ошибка загрузки материалов:', error);
-    }
-  }
-
-  // Загрузка склада (остатки и операции)
-  async function loadWarehouse() {
-    try {
-      // Балансы
-      const balances = await fetchApi('/warehouse/balances');
-      const cardsDiv = document.getElementById('balancesCards');
-      cardsDiv.innerHTML = '';
-      balances.forEach(b => {
-        const percent = Math.min(100, (b.balance / 500) * 100);
-        const card = document.createElement('div');
-        card.className = 'col';
-        card.innerHTML = `
-          <div class="card h-100">
-            <div class="card-body">
-              <h5 class="card-title">${b.name}</h5>
-              <p class="display-6">${b.balance} ед.</p>
-              <div class="progress mb-2">
-                <div class="progress-bar" style="width: ${percent}%;"></div>
-              </div>
-              <p class="card-text"><small class="text-muted">Последняя поставка: —</small></p>
+  <!-- Модальное окно заказа материала -->
+  <div class="modal fade" id="orderModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Заказ материала</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="orderForm">
+            <div class="mb-3">
+              <label class="form-label">Материал</label>
+              <input type="text" class="form-control" id="orderMaterialName" readonly disabled>
             </div>
-          </div>
-        `;
-        cardsDiv.appendChild(card);
-      });
+            <div class="mb-3">
+              <label class="form-label">Поставщик *</label>
+              <select class="form-select" id="orderSupplierId" required>
+                <option value="">Выберите...</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Количество *</label>
+              <input type="number" step="0.01" class="form-control" id="orderQuantity" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Цена за единицу *</label>
+              <input type="number" step="0.01" class="form-control" id="orderPrice" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Договор</label>
+              <select class="form-select" id="orderContractId">
+                <option value="">Создать новый договор</option>
+              </select>
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="createNewContractCheckbox">
+                <label class="form-check-label" for="createNewContractCheckbox">
+                  Создать новый договор (вместо выбора существующего)
+                </label>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" id="saveOrder">Оформить заказ</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      // Операции (движения)
-      const ops = await fetchApi('/warehouse/operations?limit=10');
-      const tbody = document.getElementById('operationsTableBody');
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const API_BASE = '';
+    let materialsMap = {};          // id -> {name, unit}
+    let allBalances = [];
+    let maxBalance = 0;
+    let currentMaterialId = null;   // для заказа
+
+    // --- Вспомогательные функции ---
+    async function fetchApi(url, options = {}) {
+      const response = await fetch(API_BASE + url, options);
+      if (response.status === 204) return null;
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Ошибка ${response.status}: ${error}`);
+      }
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      }
+      return response.text();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      });
+    }
+
+    // --- Загрузка материалов (для карты) ---
+    async function loadMaterials() {
+      try {
+        const materials = await fetchApi('/materials/');
+        materials.forEach(m => materialsMap[m.id] = { name: m.name, unit: m.unit });
+      } catch (error) {
+        console.error('Ошибка загрузки материалов:', error);
+      }
+    }
+
+    // --- Загрузка остатков и отрисовка таблицы ---
+    async function loadBalances() {
+      try {
+        allBalances = await fetchApi('/warehouse/balances') || [];
+        maxBalance = Math.max(...allBalances.map(b => b.balance), 1);
+        renderBalancesTable();
+      } catch (error) {
+        console.error('Ошибка загрузки остатков:', error);
+        document.getElementById('balancesTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Ошибка загрузки</td></tr>';
+      }
+    }
+
+    function getStatusInfo(balance) {
+      if (balance < 10) return { label: 'Очень мало', class: 'badge-very-low' };
+      if (balance < 50) return { label: 'Мало', class: 'badge-low' };
+      if (balance < 200) return { label: 'Нормально', class: 'badge-normal' };
+      return { label: 'Много', class: 'badge-high' };
+    }
+
+    function renderBalancesTable() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const filterValue = document.getElementById('statusFilter').value;
+      let filtered = [...allBalances];
+      if (searchTerm) {
+        filtered = filtered.filter(b => b.name.toLowerCase().includes(searchTerm));
+      }
+      if (filterValue !== 'all') {
+        filtered = filtered.filter(b => {
+          const status = getStatusInfo(b.balance);
+          if (filterValue === 'very_low') return status.label === 'Очень мало';
+          if (filterValue === 'low') return status.label === 'Мало';
+          if (filterValue === 'normal') return status.label === 'Нормально';
+          if (filterValue === 'high') return status.label === 'Много';
+          return true;
+        });
+      }
+      const tbody = document.getElementById('balancesTableBody');
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Нет материалов</td></tr>';
+        return;
+      }
       tbody.innerHTML = '';
-      ops.forEach(op => {
-        // Получаем название материала из словаря, если нет – показываем ID
-        const materialName = materialsMap[op.material_id] || 'ID ' + op.material_id;
+      filtered.forEach(item => {
+        const balance = item.balance;
+        const percent = maxBalance > 0 ? (balance / maxBalance) * 100 : 0;
+        const status = getStatusInfo(balance);
+        const unit = materialsMap[item.material_id]?.unit || 'ед.';
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${new Date(op.operation_date).toLocaleDateString('ru-RU')}</td>
-          <td>${op.operation_type}</td>
-          <td>${materialName}</td>
-          <td>${op.quantity}</td>
-          <td>${op.document_number || ''}</td>
-          <td><i class="fas fa-trash text-danger" onclick="deleteOperation(${op.id})"></i></td>
+          <td><strong>${escapeHtml(item.name)}</strong></td>
+          <td>${escapeHtml(unit)}</td>
+          <td>${balance.toFixed(2)}</td>
+          <td style="min-width: 120px;">
+            <div class="progress">
+              <div class="progress-bar" style="width: ${percent}%; background-color: ${getProgressColor(percent)};"></div>
+            </div>
+            <small class="text-muted">${Math.round(percent)}% от макс.</small>
+          </td>
+          <td><span class="badge ${status.class}">${status.label}</span></td>
+          <td class="action-icons">
+            <i class="fas fa-truck text-primary" title="Заказать" onclick="openOrderModal(${item.material_id})"></i>
+            <i class="fas fa-edit text-warning" title="Редактировать" onclick="editMaterialStock(${item.material_id})"></i>
+          </td>
         `;
         tbody.appendChild(row);
       });
-    } catch (error) {
-      console.error('Ошибка загрузки склада:', error);
     }
-  }
 
-  // Заполнить select материалов
-  async function fillMaterialSelect() {
-    const select = document.getElementById('opMaterialId');
-    select.innerHTML = '<option value="">Выберите...</option>';
-    const materials = await fetchApi('/materials/');
-    materials.forEach(m => {
-      const option = document.createElement('option');
-      option.value = m.id;
-      option.textContent = m.name;
-      select.appendChild(option);
-    });
-  }
+    function getProgressColor(percent) {
+      if (percent < 20) return '#dc3545';
+      if (percent < 50) return '#fd7e14';
+      if (percent < 80) return '#28a745';
+      return '#17a2b8';
+    }
 
-  // Заполнить select поставщиков
-  async function fillSupplierSelect() {
-    const select = document.getElementById('opSupplierId');
-    select.innerHTML = '<option value="">Не выбран</option>';
-    const suppliers = await fetchApi('/suppliers/');
-    suppliers.forEach(s => {
-      const option = document.createElement('option');
-      option.value = s.id;
-      option.textContent = s.name;
-      select.appendChild(option);
-    });
-  }
-
-  // Заполнить select договоров
-  async function fillContractSelect() {
-    const select = document.getElementById('opContractId');
-    select.innerHTML = '<option value="">Не выбран</option>';
-    const contracts = await fetchApi('/contracts/');
-    const suppliers = await fetchApi('/suppliers/');
-    contracts.forEach(c => {
-      const supplier = suppliers.find(s => s.id === c.supplier_id);
-      const supplierName = supplier ? supplier.name : `ID ${c.supplier_id}`;
-      const option = document.createElement('option');
-      option.value = c.id;
-      option.textContent = `${c.contract_number} (${supplierName})`;
-      select.appendChild(option);
-    });
-  }
-
-  // Сохранение операции
-  document.getElementById('saveWarehouseOp').addEventListener('click', async () => {
-    const contractId = document.getElementById('opContractId').value;
-    const supplierId = document.getElementById('opSupplierId').value;
-
-    const data = {
-      operation_type: document.getElementById('opType').value,
-      material_id: parseInt(document.getElementById('opMaterialId').value),
-      quantity: parseFloat(document.getElementById('opQuantity').value),
-      price: document.getElementById('opPrice').value ? parseFloat(document.getElementById('opPrice').value) : 0,
-      document_number: document.getElementById('opDocument').value || null,
-      contract_id: contractId ? parseInt(contractId) : null,
-      supplier_id: supplierId ? parseInt(supplierId) : null,
-      notes: document.getElementById('opNotes').value || null
+    // --- Операции (удаление и др.) ---
+    window.deleteOperation = async (id) => {
+      if (!confirm('Удалить операцию?')) return;
+      try {
+        await fetchApi(`/warehouse/operations/${id}`, { method: 'DELETE' });
+        loadOperations();
+        loadBalances();
+      } catch (error) {
+        alert('Ошибка: ' + error.message);
+      }
     };
-    try {
-      await fetchApi('/warehouse/operations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+
+    async function loadOperations() {
+      try {
+        const ops = await fetchApi('/warehouse/operations?limit=10');
+        const tbody = document.getElementById('operationsTableBody');
+        tbody.innerHTML = '';
+        for (const op of ops) {
+          const materialName = materialsMap[op.material_id]?.name || `ID ${op.material_id}`;
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${new Date(op.operation_date).toLocaleDateString('ru-RU')}</td>
+            <td>${op.operation_type === 'приход' ? '<span class="badge bg-success">Приход</span>' : '<span class="badge bg-danger">Расход</span>'}</td>
+            <td>${escapeHtml(materialName)}</td>
+            <td>${op.quantity}</td>
+            <td>${op.document_number || ''}</td>
+            <td><i class="fas fa-trash text-danger" onclick="deleteOperation(${op.id})"></i></td>
+          `;
+          tbody.appendChild(row);
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки операций:', error);
+      }
+    }
+
+    // --- Модальное окно заказа ---
+    window.openOrderModal = async (materialId) => {
+      currentMaterialId = materialId;
+      const material = materialsMap[materialId];
+      if (!material) {
+        alert('Ошибка: материал не найден');
+        return;
+      }
+      document.getElementById('orderMaterialName').value = material.name;
+      // Загружаем поставщиков, которые поставляют этот материал
+      try {
+        const prices = await fetchApi(`/supplier-prices/?material_id=${materialId}`);
+        const supplierSelect = document.getElementById('orderSupplierId');
+        supplierSelect.innerHTML = '<option value="">Выберите...</option>';
+        if (!prices || prices.length === 0) {
+          alert('Нет поставщиков для этого материала. Сначала добавьте цены в карточке поставщика.');
+          return;
+        }
+        for (const p of prices) {
+          // Получим имя поставщика
+          const supplier = await fetchApi(`/suppliers/${p.supplier_id}`);
+          if (supplier) {
+            const option = document.createElement('option');
+            option.value = p.supplier_id;
+            option.dataset.price = p.price;
+            option.textContent = `${supplier.name} (${p.price} руб.)`;
+            supplierSelect.appendChild(option);
+          }
+        }
+        // Очистка полей
+        document.getElementById('orderQuantity').value = '';
+        document.getElementById('orderPrice').value = '';
+        document.getElementById('orderContractId').innerHTML = '<option value="">Создать новый договор</option>';
+        document.getElementById('createNewContractCheckbox').checked = false;
+        // Скрыть/показать select договора в зависимости от чекбокса
+        document.getElementById('createNewContractCheckbox').addEventListener('change', function(e) {
+          const contractSelect = document.getElementById('orderContractId');
+          contractSelect.disabled = e.target.checked;
+          if (e.target.checked) {
+            contractSelect.value = '';
+          }
+        });
+        // При выборе поставщика подставляем цену и загружаем его договоры
+        supplierSelect.addEventListener('change', async (e) => {
+          const supplierId = e.target.value;
+          const selectedOption = e.target.options[e.target.selectedIndex];
+          const price = selectedOption?.dataset.price || '';
+          document.getElementById('orderPrice').value = price;
+          // Загружаем договоры этого поставщика
+          const contracts = await fetchApi(`/contracts/?supplier_id=${supplierId}`);
+          const contractSelect = document.getElementById('orderContractId');
+          contractSelect.innerHTML = '<option value="">Создать новый договор</option>';
+          if (contracts && contracts.length) {
+            contracts.forEach(c => {
+              const opt = document.createElement('option');
+              opt.value = c.id;
+              opt.textContent = `${c.contract_number} (${c.status})`;
+              contractSelect.appendChild(opt);
+            });
+          }
+          contractSelect.disabled = document.getElementById('createNewContractCheckbox').checked;
+        });
+        new bootstrap.Modal(document.getElementById('orderModal')).show();
+      } catch (error) {
+        alert('Ошибка загрузки поставщиков: ' + error.message);
+      }
+    };
+
+    document.getElementById('saveOrder').addEventListener('click', async () => {
+      const supplierId = document.getElementById('orderSupplierId').value;
+      const quantity = parseFloat(document.getElementById('orderQuantity').value);
+      const price = parseFloat(document.getElementById('orderPrice').value);
+      const createNew = document.getElementById('createNewContractCheckbox').checked;
+      let contractId = null;
+      if (!supplierId || isNaN(quantity) || quantity <= 0 || isNaN(price) || price <= 0) {
+        alert('Заполните все обязательные поля корректными значениями');
+        return;
+      }
+      try {
+        if (createNew) {
+          // Создаём новый договор
+          const contractData = {
+            supplier_id: parseInt(supplierId),
+            date: new Date().toISOString().slice(0,10),
+            total_amount: quantity * price,
+            status: 'создан',
+            contract_type: 'одноразовый',
+            items: [{
+              material_id: currentMaterialId,
+              quantity: quantity,
+              price: price
+            }]
+          };
+          const newContract = await fetchApi('/contracts/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(contractData)
+          });
+          contractId = newContract.id;
+        } else {
+          contractId = document.getElementById('orderContractId').value;
+          if (!contractId) {
+            alert('Выберите договор или отметьте "Создать новый договор"');
+            return;
+          }
+        }
+        // Создаём складскую операцию прихода
+        const opData = {
+          operation_type: 'приход',
+          material_id: currentMaterialId,
+          quantity: quantity,
+          price: price,
+          document_number: null,
+          contract_id: parseInt(contractId),
+          supplier_id: parseInt(supplierId),
+          notes: `Заказ по договору ${contractId}`
+        };
+        await fetchApi('/warehouse/operations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(opData)
+        });
+        bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide();
+        // Обновляем данные
+        await loadBalances();
+        await loadOperations();
+        alert('Заказ успешно оформлен и оприходован на склад');
+      } catch (error) {
+        alert('Ошибка: ' + error.message);
+      }
+    });
+
+    // --- Остальной код (фильтры, автозаказ, операции) ---
+    document.getElementById('searchInput').addEventListener('input', () => renderBalancesTable());
+    document.getElementById('statusFilter').addEventListener('change', () => renderBalancesTable());
+    document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('statusFilter').value = 'all';
+      renderBalancesTable();
+    });
+
+    // Автозаказ
+    document.getElementById('autoOrderBtn').addEventListener('click', async () => {
+      try {
+        const result = await fetchApi('/auto-order/check-and-create', { method: 'POST' });
+        if (result.created_contracts && result.created_contracts.length) {
+          alert(`Созданы договоры: ${result.created_contracts.map(c => c.contract_number).join(', ')}`);
+        } else {
+          alert(result.message || 'Нет материалов, требующих заказа');
+        }
+        loadBalances();
+        loadOperations();
+      } catch (error) {
+        alert('Ошибка: ' + error.message);
+      }
+    });
+
+    // Остальные функции (приход, расход, модалка операций) уже есть
+    async function fillMaterialSelect() {
+      const select = document.getElementById('opMaterialId');
+      select.innerHTML = '<option value="">Выберите...</option>';
+      const materials = await fetchApi('/materials/');
+      materials.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.id;
+        option.textContent = m.name;
+        select.appendChild(option);
       });
-      bootstrap.Modal.getInstance(document.getElementById('warehouseModal')).hide();
-      document.getElementById('warehouseForm').reset();
-      loadWarehouse();
-    } catch (error) {
-      alert('Ошибка: ' + error.message);
     }
-  });
-
-  // Удаление операции
-  window.deleteOperation = async (id) => {
-    if (!confirm('Удалить операцию?')) return;
-    try {
-      await fetchApi(`/warehouse/operations/${id}`, { method: 'DELETE' });
-      loadWarehouse(); // перезагрузить список
-    } catch (error) {
-      alert('Ошибка: ' + error.message);
+    async function fillSupplierSelect() {
+      const select = document.getElementById('opSupplierId');
+      select.innerHTML = '<option value="">Не выбран</option>';
+      const suppliers = await fetchApi('/suppliers/');
+      suppliers.forEach(s => {
+        const option = document.createElement('option');
+        option.value = s.id;
+        option.textContent = s.name;
+        select.appendChild(option);
+      });
     }
-  };
+    async function fillContractSelect() {
+      const select = document.getElementById('opContractId');
+      select.innerHTML = '<option value="">Не выбран</option>';
+      const contracts = await fetchApi('/contracts/');
+      const suppliers = await fetchApi('/suppliers/');
+      contracts.forEach(c => {
+        const supplier = suppliers.find(s => s.id === c.supplier_id);
+        const supplierName = supplier ? supplier.name : `ID ${c.supplier_id}`;
+        const option = document.createElement('option');
+        option.value = c.id;
+        option.textContent = `${c.contract_number} (${supplierName})`;
+        select.appendChild(option);
+      });
+    }
+    document.getElementById('saveWarehouseOp').addEventListener('click', async () => {
+      const contractId = document.getElementById('opContractId').value;
+      const supplierId = document.getElementById('opSupplierId').value;
+      const data = {
+        operation_type: document.getElementById('opType').value,
+        material_id: parseInt(document.getElementById('opMaterialId').value),
+        quantity: parseFloat(document.getElementById('opQuantity').value),
+        price: document.getElementById('opPrice').value ? parseFloat(document.getElementById('opPrice').value) : 0,
+        document_number: document.getElementById('opDocument').value || null,
+        contract_id: contractId ? parseInt(contractId) : null,
+        supplier_id: supplierId ? parseInt(supplierId) : null,
+        notes: document.getElementById('opNotes').value || null
+      };
+      try {
+        await fetchApi('/warehouse/operations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        bootstrap.Modal.getInstance(document.getElementById('warehouseModal')).hide();
+        document.getElementById('warehouseForm').reset();
+        loadBalances();
+        loadOperations();
+      } catch (error) {
+        alert('Ошибка: ' + error.message);
+      }
+    });
+    document.getElementById('incomeBtn').addEventListener('click', async () => {
+      await Promise.all([fillMaterialSelect(), fillSupplierSelect(), fillContractSelect()]);
+      document.getElementById('opType').value = 'приход';
+      new bootstrap.Modal(document.getElementById('warehouseModal')).show();
+    });
+    document.getElementById('expenseBtn').addEventListener('click', async () => {
+      await Promise.all([fillMaterialSelect(), fillSupplierSelect(), fillContractSelect()]);
+      document.getElementById('opType').value = 'расход';
+      new bootstrap.Modal(document.getElementById('warehouseModal')).show();
+    });
 
-  // Обработчик кнопки "Оприходовать"
-  document.getElementById('incomeBtn').addEventListener('click', async () => {
-    await Promise.all([
-      fillMaterialSelect(),
-      fillSupplierSelect(),
-      fillContractSelect()
-    ]);
-    document.getElementById('opType').value = 'приход';
-    new bootstrap.Modal(document.getElementById('warehouseModal')).show();
-  });
+    // Инициализация
+    (async function init() {
+      await loadMaterials();
+      await loadBalances();
+      await loadOperations();
+    })();
+  </script>
 
-  // Обработчик кнопки "Переместить" (используем как расход)
-  document.getElementById('expenseBtn').addEventListener('click', async () => {
-    await Promise.all([
-      fillMaterialSelect(),
-      fillSupplierSelect(),
-      fillContractSelect()
-    ]);
-    document.getElementById('opType').value = 'расход';
-    new bootstrap.Modal(document.getElementById('warehouseModal')).show();
-  });
-
-  // Инициализация: загружаем справочник материалов, затем данные склада
-  (async function init() {
-    await loadMaterialsMap();
-    await loadWarehouse();
-  })();
-</script>
-</body>
+  <!-- Футер -->
   <footer class="bg-dark text-light pt-4 pb-2 mt-5">
     <div class="container">
       <div class="row">
@@ -330,4 +645,5 @@
       </div>
     </div>
   </footer>
+</body>
 </html>

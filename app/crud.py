@@ -4,9 +4,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import case, select, update, delete, func
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
+from datetime import datetime
 from app import models, schemas
 from app.models import Material, WarehouseOperation, WarehouseOperationType
-
 logger = logging.getLogger(__name__)
 # ---------- Suppliers (уже есть, оставляем) ----------
 async def get_supplier(db: AsyncSession, supplier_id: int) -> Optional[models.Supplier]:
@@ -46,6 +46,38 @@ async def get_material(db: AsyncSession, material_id: int) -> Optional[models.Ma
 async def get_materials(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[models.Material]:
     result = await db.execute(select(models.Material).offset(skip).limit(limit))
     return result.scalars().all()
+
+async def get_material_balances(db: AsyncSession) -> List[dict]:
+    try:
+        subq = select(
+            WarehouseOperation.material_id,
+            func.sum(
+                case(
+                    (WarehouseOperation.operation_type == WarehouseOperationType.INCOME, WarehouseOperation.quantity),
+                    else_=-WarehouseOperation.quantity
+                )
+            ).label("balance")
+        ).group_by(WarehouseOperation.material_id).subquery()
+
+        stmt = select(
+            Material.id,
+            Material.name,
+            func.coalesce(subq.c.balance, 0).label("balance")
+        ).outerjoin(subq, Material.id == subq.c.material_id)
+
+        result = await db.execute(stmt)
+        rows = result.all()
+        return [
+            {
+                "material_id": row.id,
+                "name": row.name,
+                "balance": float(row.balance)
+            }
+            for row in rows
+        ]
+    except SQLAlchemyError as e:
+        logger.error(f"Ошибка в get_material_balances: {e}")
+        return []
 
 async def create_material(db: AsyncSession, material: schemas.MaterialCreate) -> models.Material:
     db_material = models.Material(**material.model_dump())
@@ -103,6 +135,13 @@ async def delete_supplier_price(db: AsyncSession, price_id: int) -> bool:
     result = await db.execute(delete(models.SupplierPrice).where(models.SupplierPrice.id == price_id))
     await db.commit()
     return result.rowcount > 0
+
+async def get_best_supplier_price(db: AsyncSession, material_id: int):
+    from sqlalchemy import select
+    from app.models import SupplierPrice
+    stmt = select(SupplierPrice).where(SupplierPrice.material_id == material_id).order_by(SupplierPrice.price.asc()).limit(1)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
 
 # ---------- Contracts ----------
 async def get_contract(db: AsyncSession, contract_id: int) -> Optional[models.Contract]:
